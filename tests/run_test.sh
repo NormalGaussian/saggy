@@ -30,14 +30,15 @@ FILTER=${1:-}
 if [ -n "$FILTER" ]; then
     # shellcheck disable=SC2010
     # find and xargs require a subshell with lots of exported variables; ls -1 is weak in not handling newlines 
-    TESTS=$(ls -1 path_*.sh | grep -P "$FILTER")
+    TESTS=$(find . -type f \( -name "path_*.sh" -o -name "should_*.sh" \) | grep -P "$FILTER")
 else
-    TESTS=$(ls -1 path_*.sh)
+    TESTS=$(find . -type f \( -name "path_*.sh" -o -name "should_*.sh" \))
 fi
 
 SUCCESSES=()
 FAILURES=()
 declare -A FAILURE_CODES
+declare -A FAILURE_OUTPUTS
 TEST_COUNT=$(echo "$TESTS" | wc -l)
 SUCCESS_COUNT=0
 SKIPPED_COUNT=0
@@ -66,6 +67,7 @@ run_test() {
         FAILURE_CODES[$test_script]=$?
         FAILURES+=("$test_script")
         FAILURE_COUNT=$((FAILURE_COUNT+1))
+        FAILURE_OUTPUTS[$test_script]="$OUTPUT"
         echo "$OUTPUT"
         echo -e "${RED}\tFailure - exit code: ${FAILURE_CODES[$test_script]}${RESET}"
         if [[ -n "${STOP_ON_FAILURE:-}" ]]; then
@@ -88,6 +90,14 @@ for test_script in $TESTS; do
 done
 END=$(date +%s%3N)
 ELAPSED=$((END-START))
+
+if [[ "$FAILURE_COUNT" -gt 0 ]]; then
+    echo -e "${BOLD}${RED}${FAILURE_COUNT} ${WHITE}Failures:${RESET}"
+    for failure in "${FAILURES[@]}"; do
+        echo -e "${RED}FAILED${RESET} ${BOLD}${WHITE}$failure${RESET} - exit code: ${FAILURE_CODES[$failure]}"
+        echo "${FAILURE_OUTPUTS[$failure]}" | tail -n 3 | sed 's/^/\t/'
+    done
+fi
 
 echo -e "${BOLD}${WHITE}Ran $TEST_COUNT tests. ${GREEN}$SUCCESS_COUNT${WHITE} succeeded, ${RED}$FAILURE_COUNT${WHITE} failed, ${YELLOW}$SKIPPED_COUNT${WHITE} skipped.${RESET}"
 echo "Elapsed time: $ELAPSED milliseconds."

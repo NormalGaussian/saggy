@@ -98,6 +98,11 @@ unsopsify_filename() {
     fi
 }
 
+unsopsify_dirname() {
+    DIR="$1"
+    echo "${DIR%.sops}"
+}
+
 encrypt_file() {
     FROM="$1"
     TO="$2"
@@ -298,39 +303,108 @@ cmd="$1"
 shift
 case "$cmd" in
     encrypt)
-        TARGET="$1"
-        DESTINATION="$2"
+        SOURCE="${1:-}"
+        DESTINATION="${2:-}"
 
-        if [[ -z "$TARGET" ]]; then
+        if [[ -z "$SOURCE" ]]; then
             echo "Nothing provided to encrypt"
             exit 1
         fi
 
-        if [[ -f "$TARGET" ]]; then
+        if ! ([[ -d "$SOURCE" ]] || [[ -f "$SOURCE" ]]); then
+            echo "Path must be a file or a folder - not some other device: $SOURCE"
+            exit 1
+        fi
 
-            encrypt_file "$TARGET" "$DESTINATION"
+        if [[ -z "$DESTINATION" ]]; then
+            # Automatically determine the destination
+            if [[ -f "$SOURCE" ]]; then
+                DESTINATION="$(get_sopsified_filename "$SOURCE")"
+            elif [[ -d "$SOURCE" ]]; then
+                DESTINATION="$(get_sopsified_dirname "$SOURCE")"
+            fi
+        fi
 
-        elif [[ -d "$TARGET" ]]; then
+        if [[ -e "$DESTINATION" ]]; then
+            if [[ -f "$SOURCE" ]] && [[ ! -f "$DESTINATION" ]]; then
+                echo "Destination already exists and it is not a file: $DESTINATION"
+                exit 1
+            elif [[ -d "$SOURCE" ]] && [[ ! -d "$DESTINATION" ]]; then
+                echo "Destination already exists and it is not a folder: $DESTINATION"
+                exit 1
+            fi
+        fi
 
-            encrypt_folder "$TARGET" "$TARGET.sops"
+        mkdir -p "$(dirname "$DESTINATION")"
+
+        if [[ -f "$SOURCE" ]]; then
+
+            encrypt_file "$SOURCE" "$DESTINATION"
+
+        elif [[ -d "$SOURCE" ]]; then
+
+            encrypt_folder "$SOURCE" "$DESTINATION"
 
         else
-            echo "Path must be a file or a folder - not some other device: $TARGET"
+            echo "Path must be a file or a folder - not some other device: $SOURCE"
             exit 1
         fi
         ;;
     decrypt)
-        TARGET="$1"
-        if [[ -z "$TARGET" ]]; then
+        SOURCE="${1:-}"
+        DESTINATION="${2:-}"
+
+        if [[ -z "$SOURCE" ]]; then
             echo "Nothing provided to decrypt"
             exit 1
         fi
-        if [[ -f "$TARGET" ]]; then
-            sops --decrypt "$TARGET" > "${TARGET%.sops}"
-        elif [[ -d "$TARGET" ]]; then
-            decrypt_folder "$TARGET" "${TARGET%.sops}"
+
+        if ! ([[ -d "$SOURCE" ]] || [[ -f "$SOURCE" ]]); then
+            echo "Path must be a file or a folder - not some other device: $SOURCE"
+            exit 1
+        fi
+
+        if [[ -z "$DESTINATION" ]]; then
+            # Automatically determine the destination
+            if [[ -f "$SOURCE" ]]; then
+                if is_sopsified_filename "$SOURCE"; then
+                    DESTINATION="$(unsopsify_filename "$SOURCE")"
+                else
+                    echo "File does not have a known suffix; so you must specify a destination as one cannot be automatically generated: $SOURCE"
+                    exit 1
+                fi
+            elif [[ -d "$SOURCE" ]]; then
+                if is_sopsified_dirname "$SOURCE"; then
+                    DESTINATION="$(unsopsify_dirname "$SOURCE")"
+                else
+                    echo "Folder does not have a known suffix; so you must specify a destination as one cannot be automatically generated: $SOURCE"
+                    exit 1
+                fi
+            fi
+        fi
+        
+        if [[ -e "$DESTINATION" ]]; then
+            if [[ -f "$SOURCE" ]] && [[ ! -f "$DESTINATION" ]]; then
+                echo "Destination already exists and it is not a file: $DESTINATION"
+                exit 1
+            elif [[ -d "$SOURCE" ]] && [[ ! -d "$DESTINATION" ]]; then
+                echo "Destination already exists and it is not a folder: $DESTINATION"
+                exit 1
+            fi
+        fi
+
+        mkdir -p "$(dirname "$DESTINATION")"
+
+        if [[ -f "$SOURCE" ]]; then
+
+            decrypt_file "$SOURCE" "$DESTINATION"
+
+        elif [[ -d "$SOURCE" ]]; then
+
+            decrypt_folder "$SOURCE" "$DESTINATION"
+
         else
-            echo "Path must be a file or a folder - not some other device: $TARGET"
+            echo "Path must be a file or a folder - not some other device: $SOURCE"
             exit 1
         fi
         ;;
