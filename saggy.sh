@@ -14,11 +14,14 @@
 #  Prefer *not* using the decrypt or encrypt commands. Instead, use the "with" command to run a command on the decrypted files.
 #  The "with" command will decrypt the files, run the command, and then delete or encrypt the files.
 
-if ! which age 2>&1 >/dev/null; then
+set -euo pipefail
+set -x
+
+if ! which age >/dev/null 2>&1; then
     echo "age is not installed. Please install age." >&2
     exit 1
 fi
-if ! which sops 2>&1 >/dev/null; then
+if ! which sops >/dev/null 2>&1; then
     echo "sops is not installed. Please install sops." >&2
     exit 1
 fi
@@ -34,19 +37,35 @@ SAGGY_KEY_FILE="${SAGGY_KEY_FILE:-$DEFAULT_SAGGY_KEY_FILE}"
 DEFAULT_SAGGY_PUBLIC_KEYS_FILE="$SAGGY_SECRETS_DIR/public-age-keys.json"
 SAGGY_PUBLIC_KEYS_FILE="${SAGGY_PUBLIC_KEYS_FILE:-$DEFAULT_SAGGY_PUBLIC_KEYS_FILE}"
 
+DEFAULT_SAGGY_KEYNAME="$(hostname)"
+DEFAULT_SAGGY_KEYNAME="${DEFAULT_SAGGY_KEYNAME,,}"
+SAGGY_KEYNAME="${SAGGY_KEYNAME:-$DEFAULT_SAGGY_KEYNAME}"
+
 export SOPS_AGE_KEY_FILE="$SAGGY_KEY_FILE"
-export AGE_PUBLIC_KEYS="$(jq -r '["--age", .[]] | join(" ")' "$PUBLIC_KEYFILE")"
+AGE_PUBLIC_KEYS=""
+if [[ -e "$SAGGY_PUBLIC_KEYS_FILE" ]]; then
+    AGE_PUBLIC_KEYS="$(jq -r '["--age", .[]] | join(" ")' "$SAGGY_PUBLIC_KEYS_FILE")"
+fi
+export AGE_PUBLIC_KEYS
 
 is_sopsified_filename() {
     FILE="$1"
     BASENAME="$(basename "$FILE")"
-    return [[ "$BASENAME" == *.sops.* ]] || [[ "$BASENAME" == *.sops ]]
+    if [[ "$BASENAME" == *.sops.* ]] || [[ "$BASENAME" == *.sops ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 is_sopsified_dirname() {
     DIR="$1"
     BASENAME="$(basename "$DIR")"
-    return [[ "$BASENAME" == *.sops ]]
+    if [[ "$BASENAME" == *.sops ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 get_sopsified_filename() {
@@ -92,6 +111,8 @@ encrypt_file() {
         TO="$(get_sopsified_filename "$FROM")"
     fi
 
+    # shellcheck disable=SC2086
+    # AGE_PUBLIC_KEYS is a string of arguments
     sops --encrypt $AGE_PUBLIC_KEYS "$FROM" > "$TO"
 }
 
@@ -108,7 +129,7 @@ encrypt_folder() {
     
     echo "Encrypting files in $FROM and saving to $TO:"
     find "$FROM" -type f | while read -r RAW_DECRYPTED_FILE; do
-        DECRYPTED_FILE="${RAW_DECRYPTED_FILE#$FROM}"
+        DECRYPTED_FILE="${RAW_DECRYPTED_FILE#"$FROM"}"
 
         # If already a sops encrypted file, skip
         if is_sopsified_filename "$DECRYPTED_FILE"; then
@@ -124,6 +145,8 @@ encrypt_folder() {
 
         mkdir -p "$(dirname "$TO$ENCRYPTED_FILE")"
 
+        # shellcheck disable=SC2086
+        # AGE_PUBLIC_KEYS is a string of arguments
         sops --encrypt $AGE_PUBLIC_KEYS "$FROM$DECRYPTED_FILE" > "$TO$ENCRYPTED_FILE"
     done
 
@@ -143,7 +166,7 @@ decrypt_folder() {
 
     echo "Decrypting files in $FROM and saving to $TO:" 
     find "$FROM" -type f | while read -r RAW_ENCRYPTED_FILE; do
-        ENCRYPTED_FILE="${RAW_ENCRYPTED_FILE#$FROM}"
+        ENCRYPTED_FILE="${RAW_ENCRYPTED_FILE#"$FROM"}"
 
         # If not a sops file, skip
         if ! is_sopsified_filename "$ENCRYPTED_FILE"; then
@@ -172,13 +195,15 @@ with_file() {
     fi
 
     TMP_FILE="$(mktemp)"
-    trap "rm -f $TMP_FILE" EXIT
+    trap 'rm -f "$TMP_FILE"' EXIT
 
     sops --decrypt "$FILE" > "$TMP_FILE"
 
     eval "$COMMAND"
 
     if [[ "$MODE" == "write" ]]; then
+        # shellcheck disable=SC2086
+        # AGE_PUBLIC_KEYS is a string of arguments
         sops --encrypt $AGE_PUBLIC_KEYS "$TMP_FILE" > "$FILE"
     fi
 }
@@ -188,18 +213,13 @@ with_file() {
 with() {
     FILE_OR_FOLDER="$1"
     shift
-    MODE="read"
-    if [[ -n "$1" ]] && [[ "$1" != "--" ]]; then
-        if [[ "$2" == "-r" ]] || [[ "$2" == "--read" ]]; then
-            MODE="read"
-        elif [[ "$2" == "-w" ]] || [[ "$2" == "--write" ]]; then
-            MODE="write"
-        fi
-        shift
-    fi
 
     # Extract the command, which is everything after "--"
+    MODE="read"
     while [[ -n "$1" ]] && [[ "$1" != "--" ]]; do
+        if [[ "$1" == "-w" ]]; then
+            MODE="write"
+        fi
         shift
     done
     shift
@@ -232,7 +252,7 @@ with() {
         # Create the temporary folder and ensure it is deleted
         TMP_FOLDER="$(mktemp -d)"
         mkdir -p "$TMP_FOLDER"
-        trap "rm -rf $TMP_FOLDER" EXIT
+        trap 'rm -rf "$TMP_FOLDER"' EXIT
 
         # Replace the {} with the folder
         COMMAND="${COMMAND//\{\}/$TMP_FOLDER}"
@@ -241,7 +261,7 @@ with() {
         decrypt_folder "$FOLDER" "$TMP_FOLDER"
         
         # Run the command
-        eval "$COMMAND"
+        eval $COMMAND
 
         # If mode is "write", then we want to save the changes
         # TODO: handle deleted files
@@ -254,7 +274,7 @@ with() {
 
         # Create the temporary file and ensure it is deleted
         TMP_FILE="$(mktemp)"
-        trap "rm -f $TMP_FILE" EXIT
+        trap 'rm -f "$TMP_FILE"' EXIT
         
         # Replace the {} with the file
         COMMAND="${COMMAND//\{\}/$TMP_FILE}"
@@ -267,6 +287,8 @@ with() {
 
         # If mode is "write", then we want to save the changes
         if [[ "$MODE" == "write" ]]; then
+            # shellcheck disable=SC2086
+            # AGE_PUBLIC_KEYS is a string of arguments
             sops --encrypt $AGE_PUBLIC_KEYS "$TMP_FILE" > "$FILE"
         fi
     fi
@@ -316,7 +338,7 @@ case "$cmd" in
         if [[ -e "$SCRIPT_DIR/secrets/age.key" ]]; then
             echo "Key already exists - to generate a new key, delete the existing key"
             echo "1. Decrypt the folders"
-            echo "  $0 decrypt"
+            echo "  $0 decrypt <target> <destination>"
             echo "2. Delete the key"
             echo "  rm \"./secrets/age.key\""
             echo "2. Delete it from the public keys file"
@@ -324,21 +346,25 @@ case "$cmd" in
             echo "3. Run this command again"
             echo "  $0 keygen"
             echo "4. Encrypt the folders"
-            echo "  $0 encrypt"
-            # TODO: add command "rotate" to rotate the key
+            echo "  $0 encrypt <target> <destination>"
+            # TODO: add command "rotate" to rotate the key. It should support a file & folder listing
             exit 1
         fi
 
         # Create the key
-        age-keygen -o "$SAGGY_KEY_FILE"
-        PUBLIC_KEY="$(age-keygen -y "$SAGGY_KEY_FILE")"
-        
-        # Use the hostname as the name for the key
-        HOSTNAME="$(hostname)"
-        HOSTNAME="${HOSTNAME,,}"
+        mkdir -p "$(dirname "$SAGGY_KEY_FILE")"
+        if ! age-keygen -o "$SAGGY_KEY_FILE" >/dev/null 2>&1; then
+            echo "Failed to generate the key"
+            exit 1        
+        fi
 
         # Add the public key to the public keys file
-        cat "$SAGGY_PUBLIC_KEYS_FILE" | jq ". + {\"${HOSTNAME,,}\": \"$PUBLIC_KEY\"}" > "$SAGGY_PUBLIC_KEYS_FILE.tmp"
+        PUBLIC_KEY="$(age-keygen -y "$SAGGY_KEY_FILE")"
+        if [[ ! -e "$SAGGY_PUBLIC_KEYS_FILE" ]]; then
+            mkdir -p "$(dirname "$SAGGY_PUBLIC_KEYS_FILE")"
+            echo "{}" > "$SAGGY_PUBLIC_KEYS_FILE"
+        fi
+        jq ". + {\"${SAGGY_KEYNAME}\": \"$PUBLIC_KEY\"}" > "$SAGGY_PUBLIC_KEYS_FILE.tmp" < "$SAGGY_PUBLIC_KEYS_FILE"
         mv "$SAGGY_PUBLIC_KEYS_FILE.tmp" "$SAGGY_PUBLIC_KEYS_FILE"
         ;;
 
@@ -367,6 +393,8 @@ case "$cmd" in
         echo "                            (default: \$SAGGY_SECRETS_DIR/age.key)"
         echo "  SAGGY_PUBLIC_KEYS_FILE  - the json file containing the public keys"
         echo "                            (default: \$SAGGY_SECRETS_DIR/public-age-keys.json)"
+        echo "  SAGGY_KEYNAME           - the name with which to save the public key when using keygen"
+        echo "                            (default: the hostname)"
         exit 1
         ;;
 esac
