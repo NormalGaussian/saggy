@@ -2,13 +2,14 @@
 
 ## Setup
 
-ENCRYPTED_DIR="./tmp/testdir.encrypted"
 DECRYPTED_DIR="./tmp/testdir.decrypted"
 PLAINTEXT_DIR="./tmp/testdir.plaintext"
 
 mkdir -p "$PLAINTEXT_DIR"
 echo "test content 1" > "$PLAINTEXT_DIR/file1.txt"
 echo "test content 2" > "$PLAINTEXT_DIR/file2.txt"
+
+mkdir -p "$(dirname "$DECRYPTED_DIR")"
 
 $SAGGY keygen
 

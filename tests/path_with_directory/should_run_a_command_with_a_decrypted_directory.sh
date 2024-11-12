@@ -2,24 +2,26 @@
 
 ## Setup
 
-ENCRYPTED_DIR="./tmp/testdir.encrypted"
-DECRYPTED_DIR="./tmp/testdir.decrypted"
-PLAINTEXT_DIR="./tmp/testdir.plaintext"
+ENCRYPTED_DIR="./tmp/testdir.sops"
+DECRYPTED_DIR="./tmp/decrypted"
+PLAINTEXT_DIR="./tmp/plaintext"
 
+mkdir -p "$ENCRYPTED_DIR"
+mkdir -p "$DECRYPTED_DIR"
 mkdir -p "$PLAINTEXT_DIR"
+
 echo "test content 1" > "$PLAINTEXT_DIR/file1.txt"
 echo "test content 2" > "$PLAINTEXT_DIR/file2.txt"
-
-mkdir -p "$(dirname "$ENCRYPTED_DIR")"
-mkdir -p "$(dirname "$DECRYPTED_DIR")"
 
 $SAGGY keygen
 $SAGGY encrypt "$PLAINTEXT_DIR" "$ENCRYPTED_DIR"
 
-## Should be able to decrypt a directory to a specified location
+## Should be able to run a command with a decrypted directory
 
-$SAGGY decrypt "$ENCRYPTED_DIR" "$DECRYPTED_DIR"
+# Use with to make a copy of the decrypted directory
+$SAGGY with "$ENCRYPTED_DIR" -- cp -r {}/* "$DECRYPTED_DIR"
 
-## Verify
+# Verify
 if [ ! -d "$DECRYPTED_DIR" ]; then echo "Should create a decrypted directory."; exit 1; fi
 if ! diff -r "$PLAINTEXT_DIR" "$DECRYPTED_DIR" >/dev/null; then echo "Should contain the decrypted content."; exit 1; fi
+

@@ -107,14 +107,11 @@ encrypt_file() {
     FROM="$1"
     TO="$2"
 
-    if is_sopsified_filename "$FROM"; then
-        echo "File is already encrypted: $FROM"
-        exit 1
-    fi
-
     if [[ -z "$TO" ]]; then
         TO="$(get_sopsified_filename "$FROM")"
     fi
+
+    mkdir -p "$(dirname "$TO")"
 
     # shellcheck disable=SC2086
     # AGE_PUBLIC_KEYS is a string of arguments
@@ -132,21 +129,10 @@ encrypt_folder() {
         TO="$(get_sopsified_dirname "$FROM")"
     fi
     
-    echo "Encrypting files in $FROM and saving to $TO:"
     find "$FROM" -type f | while read -r RAW_DECRYPTED_FILE; do
         DECRYPTED_FILE="${RAW_DECRYPTED_FILE#"$FROM"}"
 
-        # If already a sops encrypted file, skip
-        if is_sopsified_filename "$DECRYPTED_FILE"; then
-            # n.b. this is only a very shallow check, and hasn't checked the contents of the file
-            echo "File is already encrypted: $DECRYPTED_FILE"
-            # TODO: error code?
-            continue
-        fi
-
         ENCRYPTED_FILE="$(get_sopsified_filename "$DECRYPTED_FILE")"
-
-        echo -e "\t$DECRYPTED_FILE"
 
         mkdir -p "$(dirname "$TO$ENCRYPTED_FILE")"
 
@@ -165,11 +151,19 @@ end_with_slash() {
     fi
 }
 
+decrypt_file() {
+    FROM="$1"
+    TO="$2"
+
+    mkdir -p "$(dirname "$TO")"
+
+    sops --decrypt "$FROM" > "$TO"
+}
+
 decrypt_folder() {
     FROM="$(end_with_slash "$1")"
     TO="$(end_with_slash "$2")"
 
-    echo "Decrypting files in $FROM and saving to $TO:" 
     find "$FROM" -type f | while read -r RAW_ENCRYPTED_FILE; do
         ENCRYPTED_FILE="${RAW_ENCRYPTED_FILE#"$FROM"}"
 
@@ -181,7 +175,6 @@ decrypt_folder() {
 
         DECRYPTED_FILE="$(unsopsify_filename "$ENCRYPTED_FILE")"
 
-        echo -e "\t$DECRYPTED_FILE"
 
         mkdir -p "$(dirname "$TO$ENCRYPTED_FILE")"
 
@@ -195,7 +188,7 @@ with_file() {
     MODE="$3"
 
     if [[ ! -e "$FILE" ]]; then
-        echo "File does not exist: $FILE"
+        echo "File does not exist: $FILE" >&2
         exit 1
     fi
 
@@ -230,12 +223,12 @@ with() {
     shift
     COMMAND="$@"
     if [[ -z "$COMMAND" ]]; then
-        echo "No command provided"
+        echo "No command provided" >&2
         exit 1
     fi
 
     if [[ ! -e "$FILE_OR_FOLDER" ]]; then
-        echo "File or folder does not exist: $FILE_OR_FOLDER"
+        echo "File or folder does not exist: $FILE_OR_FOLDER" >&2
         exit 1
     fi
 
@@ -247,7 +240,7 @@ with() {
     elif [[ -f "$FILE_OR_FOLDER" ]]; then
         FILE="$FILE_OR_FOLDER"
     else
-        echo "path must be a file or a folder - not some other device: $FILE_OR_FOLDER"
+        echo "path must be a file or a folder - not some other device: $FILE_OR_FOLDER" >&2
         exit 1
     fi
 
@@ -307,12 +300,12 @@ case "$cmd" in
         DESTINATION="${2:-}"
 
         if [[ -z "$SOURCE" ]]; then
-            echo "Nothing provided to encrypt"
+            echo "Nothing provided to encrypt" >&2
             exit 1
         fi
 
         if ! ([[ -d "$SOURCE" ]] || [[ -f "$SOURCE" ]]); then
-            echo "Path must be a file or a folder - not some other device: $SOURCE"
+            echo "Path must be a file or a folder - not some other device: $SOURCE" >&2
             exit 1
         fi
 
@@ -327,10 +320,10 @@ case "$cmd" in
 
         if [[ -e "$DESTINATION" ]]; then
             if [[ -f "$SOURCE" ]] && [[ ! -f "$DESTINATION" ]]; then
-                echo "Destination already exists and it is not a file: $DESTINATION"
+                echo "Destination already exists and it is not a file: $DESTINATION" >&2
                 exit 1
             elif [[ -d "$SOURCE" ]] && [[ ! -d "$DESTINATION" ]]; then
-                echo "Destination already exists and it is not a folder: $DESTINATION"
+                echo "Destination already exists and it is not a folder: $DESTINATION" >&2
                 exit 1
             fi
         fi
@@ -346,7 +339,7 @@ case "$cmd" in
             encrypt_folder "$SOURCE" "$DESTINATION"
 
         else
-            echo "Path must be a file or a folder - not some other device: $SOURCE"
+            echo "Path must be a file or a folder - not some other device: $SOURCE" >&2
             exit 1
         fi
         ;;
@@ -355,12 +348,12 @@ case "$cmd" in
         DESTINATION="${2:-}"
 
         if [[ -z "$SOURCE" ]]; then
-            echo "Nothing provided to decrypt"
+            echo "Nothing provided to decrypt" >&2
             exit 1
         fi
 
         if ! ([[ -d "$SOURCE" ]] || [[ -f "$SOURCE" ]]); then
-            echo "Path must be a file or a folder - not some other device: $SOURCE"
+            echo "Path must be a file or a folder - not some other device: $SOURCE" >&2
             exit 1
         fi
 
@@ -370,14 +363,14 @@ case "$cmd" in
                 if is_sopsified_filename "$SOURCE"; then
                     DESTINATION="$(unsopsify_filename "$SOURCE")"
                 else
-                    echo "File does not have a known suffix; so you must specify a destination as one cannot be automatically generated: $SOURCE"
+                    echo "File does not have a known suffix; so you must specify a destination as one cannot be automatically generated: $SOURCE" >&2
                     exit 1
                 fi
             elif [[ -d "$SOURCE" ]]; then
                 if is_sopsified_dirname "$SOURCE"; then
                     DESTINATION="$(unsopsify_dirname "$SOURCE")"
                 else
-                    echo "Folder does not have a known suffix; so you must specify a destination as one cannot be automatically generated: $SOURCE"
+                    echo "Folder does not have a known suffix; so you must specify a destination as one cannot be automatically generated: $SOURCE" >&2
                     exit 1
                 fi
             fi
@@ -385,10 +378,10 @@ case "$cmd" in
         
         if [[ -e "$DESTINATION" ]]; then
             if [[ -f "$SOURCE" ]] && [[ ! -f "$DESTINATION" ]]; then
-                echo "Destination already exists and it is not a file: $DESTINATION"
+                echo "Destination already exists and it is not a file: $DESTINATION" >&2
                 exit 1
             elif [[ -d "$SOURCE" ]] && [[ ! -d "$DESTINATION" ]]; then
-                echo "Destination already exists and it is not a folder: $DESTINATION"
+                echo "Destination already exists and it is not a folder: $DESTINATION" >&2
                 exit 1
             fi
         fi
@@ -404,23 +397,23 @@ case "$cmd" in
             decrypt_folder "$SOURCE" "$DESTINATION"
 
         else
-            echo "Path must be a file or a folder - not some other device: $SOURCE"
+            echo "Path must be a file or a folder - not some other device: $SOURCE" >&2
             exit 1
         fi
         ;;
     keygen)
         if [[ -e "$SCRIPT_DIR/secrets/age.key" ]]; then
-            echo "Key already exists - to generate a new key, delete the existing key"
-            echo "1. Decrypt the folders"
-            echo "  $0 decrypt <target> <destination>"
-            echo "2. Delete the key"
-            echo "  rm \"./secrets/age.key\""
-            echo "2. Delete it from the public keys file"
-            echo "  vi \"./secrets/public-age-keys.json\""
-            echo "3. Run this command again"
-            echo "  $0 keygen"
-            echo "4. Encrypt the folders"
-            echo "  $0 encrypt <target> <destination>"
+            echo "Key already exists - to generate a new key, delete the existing key" >&2
+            echo "1. Decrypt the folders" >&2
+            echo "  $0 decrypt <target> <destination>" >&2
+            echo "2. Delete the key" >&2
+            echo "  rm \"./secrets/age.key\"" >&2
+            echo "2. Delete it from the public keys file" >&2
+            echo "  vi \"./secrets/public-age-keys.json\"" >&2
+            echo "3. Run this command again" >&2
+            echo "  $0 keygen" >&2
+            echo "4. Encrypt the folders" >&2
+            echo "  $0 encrypt <target> <destination>" >&2
             # TODO: add command "rotate" to rotate the key. It should support a file & folder listing
             exit 1
         fi
@@ -428,7 +421,7 @@ case "$cmd" in
         # Create the key
         mkdir -p "$(dirname "$SAGGY_KEY_FILE")"
         if ! age-keygen -o "$SAGGY_KEY_FILE" >/dev/null 2>&1; then
-            echo "Failed to generate the key"
+            echo "Failed to generate the key" >&2
             exit 1        
         fi
 
@@ -447,28 +440,37 @@ case "$cmd" in
         ;;
 
     *)
-        echo "Usage:"
-        echo "  $0 keygen"
-        echo "     - Generate a new key and add it to the public keys file"
-        echo "  $0 with <target> [-w] -- <command>"
-        echo "     - Run the command with the target decrypted"
-        echo "       The target is decrypted and into a temporary file or folder"
-        echo "       Any {} in the command is replaced with the temporary file or folder"
-        echo "       If the -w flag is provided, changes to the decrypted file or folder are encrypted again"
-        echo "       Otherwise, the decrypted file or folder is deleted and changes are not preserved"
-        echo "  $0 encrypt <target>"
-
-        echo "  $0 decrypt <target>"
-        echo ""
-        echo "Environment Variables:"
-        echo "  SAGGY_SECRETS_DIR       - the directory containing the secrets"
-        echo "                            (default: ./secrets)"
-        echo "  SAGGY_KEY_FILE          - the file containing the AGE key"
-        echo "                            (default: \$SAGGY_SECRETS_DIR/age.key)"
-        echo "  SAGGY_PUBLIC_KEYS_FILE  - the json file containing the public keys"
-        echo "                            (default: \$SAGGY_SECRETS_DIR/public-age-keys.json)"
-        echo "  SAGGY_KEYNAME           - the name with which to save the public key when using keygen"
-        echo "                            (default: the hostname)"
+        echo "Usage:" >&2
+        echo "  $0 keygen" >&2
+        echo "     - Generate a new key and add it to the public keys file" >&2
+        echo "  $0 with <target> [-w] -- <command>" >&2
+        echo "     - Run the command with the target decrypted" >&2
+        echo "       The target is decrypted and into a temporary file or folder" >&2
+        echo "       Any {} in the command is replaced with the temporary file or folder" >&2
+        echo "       If the -w flag is provided, changes to the decrypted file or folder are encrypted again" >&2
+        echo "       Otherwise, the decrypted file or folder is deleted and changes are not preserved" >&2
+        echo "  $0 encrypt <target>" >&2
+        echo "     - Encrypt the target, storing the result in a file with the same name but with a .sops pre-suffix" >&2
+        echo "       e.g myfile.yaml -> myfile.sops.yaml." >&2
+        echo "           myfile -> myfile.sops" >&2
+        echo "  $0 encrypt <target> <destination>" >&2
+        echo "     - Encrypt the target, storing the result in the destination file" >&2
+        echo "  $0 decrypt <target>" >&2
+        echo "     - Decrypt the target, storing the result in a file with the same name but without a .sops pre-suffix" >&2
+        echo "       e.g myfile.sops.yaml -> myfile.yaml." >&2
+        echo "           myfile.sops -> myfile" >&2
+        echo "  $0 decrypt <target> <destination>" >&2
+        echo "     - Decrypt the target, storing the result in the destination file" >&2
+        echo "" >&2
+        echo "Environment Variables:" >&2
+        echo "  SAGGY_SECRETS_DIR       - the directory containing the secrets" >&2
+        echo "                            (default: ./secrets)" >&2
+        echo "  SAGGY_KEY_FILE          - the file containing the AGE key" >&2
+        echo "                            (default: \$SAGGY_SECRETS_DIR/age.key)" >&2
+        echo "  SAGGY_PUBLIC_KEYS_FILE  - the json file containing the public keys" >&2
+        echo "                            (default: \$SAGGY_SECRETS_DIR/public-age-keys.json)" >&2
+        echo "  SAGGY_KEYNAME           - the name with which to save the public key when using keygen" >&2
+        echo "                            (default: the hostname)" >&2
         exit 1
         ;;
 esac
