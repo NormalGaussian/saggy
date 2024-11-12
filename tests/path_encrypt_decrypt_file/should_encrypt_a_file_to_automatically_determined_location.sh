@@ -1,9 +1,8 @@
-
 #!/bin/bash
 
 ## Setup
 
-PLAINTEXT_FILE="./tmp/plaintext"
+PLAINTEXT_FILE="$(mktemp -d)/plaintext"
 
 mkdir -p "$(dirname "$PLAINTEXT_FILE")"
 

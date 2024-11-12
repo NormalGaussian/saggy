@@ -26,8 +26,6 @@ if ! which sops >/dev/null 2>&1; then
     exit 1
 fi
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-
 DEFAULT_SAGGY_SECRETS_DIR="./secrets"
 SAGGY_SECRETS_DIR="${SAGGY_SECRETS_DIR:-$DEFAULT_SAGGY_SECRETS_DIR}"
 
@@ -402,7 +400,7 @@ case "$cmd" in
         fi
         ;;
     keygen)
-        if [[ -e "$SCRIPT_DIR/secrets/age.key" ]]; then
+        if [[ -e "./secrets/age.key" ]]; then
             echo "Key already exists - to generate a new key, delete the existing key" >&2
             echo "1. Decrypt the folders" >&2
             echo "  $0 decrypt <target> <destination>" >&2

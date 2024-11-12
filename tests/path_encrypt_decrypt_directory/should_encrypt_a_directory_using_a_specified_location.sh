@@ -2,8 +2,8 @@
 
 ## Setup
 
-ENCRYPTED_DIR="./tmp/testdir.encrypted"
-PLAINTEXT_DIR="./tmp/testdir.plaintext"
+ENCRYPTED_DIR="./testdir.encrypted"
+PLAINTEXT_DIR="./testdir.plaintext"
 
 mkdir -p "$PLAINTEXT_DIR"
 echo "test content 1" > "$PLAINTEXT_DIR/file1.txt"

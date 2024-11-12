@@ -13,7 +13,9 @@ GREY="\033[90m"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 cd "$SCRIPT_DIR"
 
-SAGGY="${SAGGY:-../saggy.sh}"
+SAGGY="${SAGGY:-$SCRIPT_DIR/../saggy.sh}"
+
+TMPDIR="$SCRIPT_DIR/tmp"
 
 cleanup() {
     if [ -d "./secrets" ]; then
@@ -22,6 +24,9 @@ cleanup() {
     if [ -d "./tmp" ]; then
         rm -rf ./tmp
     fi
+}
+prepare() {
+    mkdir -p ./tmp
 }
 
 trap cleanup EXIT
@@ -59,7 +64,11 @@ run_test() {
 
     echo -e "${BOLD}${WHITE}Running $test_script:${RESET}"
 
-    if OUTPUT="$(env -i PS4="$CHILD_PS4" SAGGY="$SAGGY" bash -xeuo pipefail "./$test_script" 2>&1)"; then
+    TEST_DIR="$TMPDIR/$test_script"
+    TEST_TEMP_DIR="$TEST_DIR/tmp"
+    mkdir -p "$TEST_TEMP_DIR"
+
+    if OUTPUT="$(cd "$TEST_DIR" && env -i PS4="$CHILD_PS4" SAGGY="$SAGGY" TMPDIR="$TEST_TEMP_DIR" bash -xeuo pipefail "$SCRIPT_DIR/$test_script" 2>&1)"; then
         SUCCESSES+=("$test_script")
         SUCCESS_COUNT=$((SUCCESS_COUNT+1))
         echo -e "${GREEN}\tSuccess${RESET}"
@@ -82,6 +91,7 @@ export -f run_test
 cleanup
 START=$(date +%s%3N)
 for test_script in $TESTS; do
+    prepare
     if ! run_test "$test_script"; then
         if [[ -n "${STOP_ON_FAILURE:-}" ]]; then
             break

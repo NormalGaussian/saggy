@@ -2,9 +2,9 @@
 
 ## Setup
 
-ENCRYPTED_FILE="./tmp/testfile.sops"
-DECRYPTED_FILE="./tmp/testfile.decrypted"
-PLAINTEXT_FILE="./tmp/testfile.plaintext"
+ENCRYPTED_FILE="./testfile.sops"
+DECRYPTED_FILE="./testfile.decrypted"
+PLAINTEXT_FILE="./testfile.plaintext"
 
 mkdir -p "$(dirname "$DECRYPTED_FILE")"
 echo "test content" > "$PLAINTEXT_FILE"

@@ -1,10 +1,9 @@
-
 #!/bin/bash
 
 ## Setup
 
-ENCRYPTED_FILE="./tmp/testfile.sops"
-PLAINTEXT_FILE="./tmp/testfile.plaintext"
+ENCRYPTED_FILE="$(mktemp -d)/testfile.sops"
+PLAINTEXT_FILE="$(mktemp -d)/testfile.plaintext"
 
 mkdir -p "$(dirname "$ENCRYPTED_FILE")"
 mkdir -p "$(dirname "$PLAINTEXT_FILE")"

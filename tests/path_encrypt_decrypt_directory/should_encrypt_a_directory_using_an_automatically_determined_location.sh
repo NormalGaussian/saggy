@@ -2,7 +2,7 @@
 
 ## Setup
 
-PLAINTEXT_DIR="./tmp/testdir.plaintext"
+PLAINTEXT_DIR="./testdir.plaintext"
 
 mkdir -p "$PLAINTEXT_DIR"
 echo "test content 1" > "$PLAINTEXT_DIR/file1.txt"
