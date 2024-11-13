@@ -439,24 +439,30 @@ case "$cmd" in
 
     *)
         echo "Usage:" >&2
+        echo "" >&2
         echo "  $0 keygen" >&2
         echo "     - Generate a new key and add it to the public keys file" >&2
+        echo "" >&2
         echo "  $0 with <target> [-w] -- <command>" >&2
         echo "     - Run the command with the target decrypted" >&2
         echo "       The target is decrypted and into a temporary file or folder" >&2
         echo "       Any {} in the command is replaced with the temporary file or folder" >&2
         echo "       If the -w flag is provided, changes to the decrypted file or folder are encrypted again" >&2
         echo "       Otherwise, the decrypted file or folder is deleted and changes are not preserved" >&2
+        echo "" >&2
         echo "  $0 encrypt <target>" >&2
         echo "     - Encrypt the target, storing the result in a file with the same name but with a .sops pre-suffix" >&2
         echo "       e.g myfile.yaml -> myfile.sops.yaml." >&2
         echo "           myfile -> myfile.sops" >&2
+        echo "" >&2
         echo "  $0 encrypt <target> <destination>" >&2
         echo "     - Encrypt the target, storing the result in the destination file" >&2
+        echo "" >&2
         echo "  $0 decrypt <target>" >&2
         echo "     - Decrypt the target, storing the result in a file with the same name but without a .sops pre-suffix" >&2
         echo "       e.g myfile.sops.yaml -> myfile.yaml." >&2
         echo "           myfile.sops -> myfile" >&2
+        echo "" >&2
         echo "  $0 decrypt <target> <destination>" >&2
         echo "     - Decrypt the target, storing the result in the destination file" >&2
         echo "" >&2
@@ -468,7 +474,7 @@ case "$cmd" in
         echo "  SAGGY_PUBLIC_KEYS_FILE  - the json file containing the public keys" >&2
         echo "                            (default: \$SAGGY_SECRETS_DIR/public-age-keys.json)" >&2
         echo "  SAGGY_KEYNAME           - the name with which to save the public key when using keygen" >&2
-        echo "                            (default: the hostname)" >&2
+        echo "                            (default: the lowercased hostname)" >&2
         exit 1
         ;;
 esac

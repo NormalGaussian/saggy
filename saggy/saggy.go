@@ -10,16 +10,16 @@ import (
 )
 
 var (
-	defaultSecretsDir       = "./secrets"
-	secretsDir              = getEnv("SAGGY_SECRETS_DIR", defaultSecretsDir)
-	defaultKeyFile          = filepath.Join(secretsDir, "age.key")
-	keyFile                 = getEnv("SAGGY_KEY_FILE", defaultKeyFile)
-	defaultPublicKeysFile   = filepath.Join(secretsDir, "public-age-keys.json")
-	publicKeysFile          = getEnv("SAGGY_PUBLIC_KEYS_FILE", defaultPublicKeysFile)
-	defaultKeyName          = strings.ToLower(getHostname())
-	keyName                 = getEnv("SAGGY_KEYNAME", defaultKeyName)
-	sopsAgeKeyFile          = keyFile
-	agePublicKeys           = getAgePublicKeys()
+	defaultSecretsDir     = "./secrets"
+	secretsDir            = getEnv("SAGGY_SECRETS_DIR", defaultSecretsDir)
+	defaultKeyFile        = filepath.Join(secretsDir, "age.key")
+	keyFile               = getEnv("SAGGY_KEY_FILE", defaultKeyFile)
+	defaultPublicKeysFile = filepath.Join(secretsDir, "public-age-keys.json")
+	publicKeysFile        = getEnv("SAGGY_PUBLIC_KEYS_FILE", defaultPublicKeysFile)
+	defaultKeyName        = strings.ToLower(getHostname())
+	keyName               = getEnv("SAGGY_KEYNAME", defaultKeyName)
+	sopsAgeKeyFile        = keyFile
+	agePublicKeys         = getAgePublicKeys()
 )
 
 func getEnv(key, defaultValue string) string {
