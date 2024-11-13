@@ -51,6 +51,19 @@ TEST_COUNT=$(echo "$TESTS" | wc -l)
 # shellcheck disable=SC2016
 CHILD_PS4=$GREY'$(printf "%*s" $BASH_SUBSHELL " " | tr " " "+")$(printf "%$((30 - $BASH_SUBSHELL))s" $(basename $0))$(printf "%4s" $LINENO): '$RESET
 
+TESTENV="${TESTENV:-}"
+CHILD_ENV=()
+IFS="," read -r -a TESTENV_VARS <<< "$TESTENV"
+for VAR in "${TESTENV_VARS[@]}"; do
+    if [[ ! -z "${!VAR:-}" ]]; then
+        CHILD_ENV+=("$VAR=${!VAR}")
+    fi
+done
+
+CHILD_ENV+=("SAGGY=$SAGGY")
+CHILD_ENV+=("PS4=$CHILD_PS4")
+CHILD_ENV+=("PATH=$PATH")
+
 run_test() {
     local test_script=$1
     NAME_HASH="$(echo "$test_script" | md5sum - | head -c 4)"
@@ -67,7 +80,7 @@ run_test() {
 
     cd "$TEST_DIR"
 
-    if env -i PS4="$CHILD_PS4" SAGGY="$SAGGY" TMPDIR="$TEST_TEMP_DIR" bash -xeuo pipefail "$SCRIPT_DIR/$test_script" > "$RESULTS_DIR/$test_id.log" 2>&1; then
+    if env -i "${CHILD_ENV[@]}" TMPDIR="$TEST_TEMP_DIR" bash -xeuo pipefail "$SCRIPT_DIR/$test_script" > "$RESULTS_DIR/$test_id.log" 2>&1; then
         touch "$RESULTS_DIR/$test_id.success"
     else
         echo "$?" > "$RESULTS_DIR/$test_id.failure"

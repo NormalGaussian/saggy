@@ -1,0 +1,4 @@
+#!/bin/bash
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+TESTENV=GOCACHE,XDG_CACHE_HOME,HOME SAGGY="go run $SCRIPT_DIR/../main.go" $SCRIPT_DIR/run_test.sh "$@"
