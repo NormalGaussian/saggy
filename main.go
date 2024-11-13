@@ -1,50 +1,66 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"saggy"
 	"strings"
 )
 
-func main() {
+type CLIError struct {
+	Code    int
+	Message string
+	Err     error
+}
+
+func (e *CLIError) Error() string {
+	if e.Err != nil {
+		return e.Message + ": " + e.Err.Error()
+	} else {
+		return e.Message
+	}
+}
+
+func NewCLIError(code int, message string, err error) *CLIError {
+	return &CLIError{Code: code, Message: message, Err: err}
+}
+
+func cli(argv []string) error {
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
 	}
 
-	cmd := os.Args[1]
-	args := os.Args[2:]
+	cmd := argv[1]
+	args := argv[2:]
 
 	switch cmd {
 	case "encrypt":
 		if len(args) < 1 {
-			fmt.Fprintln(os.Stderr, "Nothing provided to encrypt")
-			os.Exit(1)
+			return NewCLIError(1, "Nothing provided to encrypt", nil)
 		}
 		source := args[0]
 		destination := ""
 		if len(args) > 1 {
 			destination = args[1]
 		}
-		saggy.Encrypt(source, destination)
+		return saggy.Encrypt(source, destination)
 	case "decrypt":
 		if len(args) < 1 {
-			fmt.Fprintln(os.Stderr, "Nothing provided to decrypt")
-			os.Exit(1)
+			return NewCLIError(1, "Nothing provided to decrypt", nil)
 		}
 		source := args[0]
 		destination := ""
 		if len(args) > 1 {
 			destination = args[1]
 		}
-		saggy.Decrypt(source, destination)
+		return saggy.Decrypt(source, destination)
 	case "keygen":
-		saggy.Keygen()
+		return saggy.Keygen()
 	case "with":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "Usage: with <target> [-w] -- <command>")
-			os.Exit(1)
+			return NewCLIError(1, "Usage: with <target> [-w] -- <command>", nil)
 		}
 		target := args[0]
 		mode := "read"
@@ -54,11 +70,32 @@ func main() {
 			commandIndex = 2
 		}
 		command := strings.Join(args[commandIndex+1:], " ")
-		saggy.With(target, command, mode)
+		return saggy.With(target, command, mode)
 	default:
-		printUsage()
-		os.Exit(1)
+		return NewCLIError(1, "Unknown command: "+cmd, nil)
 	}
+}
+
+func main() {
+	// Invoke the CLI
+	err := cli(os.Args)
+	if err != nil {
+		if errors.As(err, &CLIError{}) {
+			fmt.Fprintln(os.Stderr, err)
+			if err.(*CLIError).Code == 1 {
+				printUsage()
+			}
+			os.Exit(err.(*CLIError).Code)
+		}
+		if errors.As(err, &saggy.SaggyError{}) {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(3)
+	}
+	os.Exit(0)
 }
 
 func printUsage() {

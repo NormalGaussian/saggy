@@ -2,24 +2,19 @@ package saggy
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 var (
-	defaultSecretsDir     = "./secrets"
-	secretsDir            = getEnv("SAGGY_SECRETS_DIR", defaultSecretsDir)
-	defaultKeyFile        = filepath.Join(secretsDir, "age.key")
-	keyFile               = getEnv("SAGGY_KEY_FILE", defaultKeyFile)
-	defaultPublicKeysFile = filepath.Join(secretsDir, "public-age-keys.json")
-	publicKeysFile        = getEnv("SAGGY_PUBLIC_KEYS_FILE", defaultPublicKeysFile)
-	defaultKeyName        = strings.ToLower(getHostname())
-	keyName               = getEnv("SAGGY_KEYNAME", defaultKeyName)
-	sopsAgeKeyFile        = keyFile
-	agePublicKeys         = getAgePublicKeys()
+	secretsDir     = getEnv("SAGGY_SECRETS_DIR", "./secrets")
+	keyFile        = getEnv("SAGGY_KEY_FILE", filepath.Join(secretsDir, "age.key"))
+	publicKeysFile = getEnv("SAGGY_PUBLIC_KEYS_FILE", filepath.Join(secretsDir, "public-age-keys.json"))
+	keyName        = getEnv("SAGGY_KEYNAME", strings.ToLower(getHostname()))
+	sopsAgeKeyFile = keyFile
 )
 
 func getEnv(key, defaultValue string) string {
@@ -38,27 +33,25 @@ func getHostname() string {
 	return hostname
 }
 
-func getAgePublicKeys() string {
-	if _, err := os.Stat(publicKeysFile); os.IsNotExist(err) {
-		return ""
+func getAgePublicKeys() ([]string, *SaggyError) {
+	if _, err := os.Stat(publicKeysFile); errors.Is(err, os.ErrNotExist) {
+		return []string{}, nil
 	}
 
-	data, err := ioutil.ReadFile(publicKeysFile)
+	data, err := os.ReadFile(publicKeysFile)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to read public keys file:", err)
-		os.Exit(1)
+		return nil, NewSaggyError("Failed to read public keys file", err)
 	}
 
 	var keys map[string]string
 	if err := json.Unmarshal(data, &keys); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to parse public keys file:", err)
-		os.Exit(1)
+		return nil, NewSaggyError("Failed to parse public keys file", err)
 	}
 
-	args := []string{"--age"}
-	for _, key := range keys {
-		args = append(args, key)
+	publicKeys := []string{}
+	for key, value := range keys {
+		publicKeys = append(publicKeys, key+"="+value)
 	}
 
-	return strings.Join(args, " ")
+	return publicKeys, nil
 }

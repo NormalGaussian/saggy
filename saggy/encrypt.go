@@ -1,44 +1,53 @@
 package saggy
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
-func Encrypt(from, to string) {
-	if isFile(from) {
-		EncryptFile(from, to)
+func Encrypt(from, to string) *SaggyError {
+	if is_dir, s_err := isDir(from); s_err != nil {
+		return s_err
+	} else if is_dir {
+		return EncryptFolder(from, to)
 	} else {
-		EncryptFolder(from, to)
+		return EncryptFile(from, to)
 	}
 }
 
-func EncryptFile(from, to string) {
+func EncryptFile(from, to string) *SaggyError {
 	if to == "" {
 		to = getSopsifiedFilename(from)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(to), 0755); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to create directory:", err)
-		os.Exit(1)
+	keys, s_err := getAgePublicKeys()
+	if s_err != nil {
+		return s_err
 	}
+	args := []string{"--encrypt"}
+	for _, key := range keys {
+		args = append(args, "--age", key)
+	}
+	args = append(args, from)
+	cmd := exec.Command("sops", args...)
 
-	cmd := exec.Command("sops", "--encrypt", agePublicKeys, from)
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to encrypt file:", err)
-		os.Exit(1)
+		return NewSaggyError("Failed to encrypt file", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(to), 0755); err != nil {
+		return NewSaggyError("Failed to create directory", err)
 	}
 
 	if err := os.WriteFile(to, output, 0644); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to write encrypted file:", err)
-		os.Exit(1)
+		return NewSaggyError("Failed to write encrypted file", err)
 	}
+	return nil
 }
 
-func EncryptFolder(from, to string) {
+func EncryptFolder(from, to string) *SaggyError {
 	from = endWithSlash(from)
 	to = endWithSlash(to)
 
@@ -46,32 +55,47 @@ func EncryptFolder(from, to string) {
 		to = getSopsifiedDirname(from)
 	}
 
-	err := filepath.Walk(from, func(path string, info os.FileInfo, err error) error {
+	keys, s_err := getAgePublicKeys()
+	if s_err != nil {
+		return s_err
+	}
+
+	err := filepath.WalkDir(from, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
-			return err
+			return NewSaggyError("Failed to walk directory", err)
 		}
 		if !info.IsDir() {
 			relPath, err := filepath.Rel(from, path)
 			if err != nil {
 				return err
 			}
+
 			encryptedFile := getSopsifiedFilename(relPath)
 			if err := os.MkdirAll(filepath.Dir(to+encryptedFile), 0755); err != nil {
-				return err
+				return NewSaggyError("Failed to create directory", err)
 			}
-			cmd := exec.Command("sops", "--encrypt", agePublicKeys, path)
+
+			args := []string{"--encrypt"}
+			for _, key := range keys {
+				args = append(args, "--age", key)
+			}
+			args = append(args, path)
+			cmd := exec.Command("sops", args...)
 			output, err := cmd.Output()
 			if err != nil {
-				return err
+				return NewSaggyError("Failed to encrypt file", err)
 			}
 			if err := os.WriteFile(to+encryptedFile, output, 0644); err != nil {
-				return err
+				return NewSaggyError("Failed to write encrypted file", err)
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to encrypt folder:", err)
-		os.Exit(1)
+		if saggyErr, ok := err.(*SaggyError); ok {
+			return saggyErr
+		}
+		return NewSaggyError("Failed to walk directory", err)
 	}
+	return nil
 }

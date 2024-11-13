@@ -1,43 +1,57 @@
 package saggy
 
 import (
-	"fmt"
 	"os"
 )
 
-func With(target, command, mode string) {
-	if _, err := os.Stat(target); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, "File or folder does not exist:", target)
-		os.Exit(1)
-	}
-
-	if isDir(target) {
-		withFolder(target, command, mode)
+func With(target, command, mode string) *SaggyError {
+	if is_dir, s_err := isDir(target); s_err != nil {
+		return s_err
+	} else if is_dir {
+		return withFolder(target, command, mode)
 	} else {
-		withFile(target, command, mode)
+		return withFile(target, command, mode)
 	}
 }
 
-func withFile(file, command, mode string) {
-	tmpFile := createTempFile()
+func withFile(file, command, mode string) *SaggyError {
+	tmpFile, s_err := createTempFile()
+	if s_err != nil {
+		return NewSaggyError("Failed to create temporary file", s_err)
+	}
 	defer os.Remove(tmpFile)
 
-	DecryptFile(file, tmpFile)
-	runCommand(command, tmpFile)
+	if s_err := DecryptFile(file, tmpFile); s_err != nil {
+		return NewSaggyError("Failed to decrypt file", s_err)
+	}
+
+	if s_err := runCommand(command, tmpFile); s_err != nil {
+		return NewSaggyError("Failed to run command", s_err)
+	}
 
 	if mode == "write" {
-		EncryptFile(tmpFile, file)
+		return EncryptFile(tmpFile, file)
 	}
+	return nil
 }
 
-func withFolder(folder, command, mode string) {
-	tmpFolder := createTempDir()
+func withFolder(folder, command, mode string) *SaggyError {
+	tmpFolder, s_err := createTempDir()
+	if s_err != nil {
+		return NewSaggyError("Failed to create temporary directory", s_err)
+	}
 	defer os.RemoveAll(tmpFolder)
 
-	DecryptFolder(folder, tmpFolder)
-	runCommand(command, tmpFolder)
+	if s_err := DecryptFolder(folder, tmpFolder); s_err != nil {
+		return NewSaggyError("Failed to decrypt folder", s_err)
+	}
+
+	if s_err := runCommand(command, tmpFolder); s_err != nil {
+		return NewSaggyError("Failed to run command", s_err)
+	}
 
 	if mode == "write" {
-		EncryptFolder(tmpFolder, folder)
+		return EncryptFolder(tmpFolder, folder)
 	}
+	return nil
 }

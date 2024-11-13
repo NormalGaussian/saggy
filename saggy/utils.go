@@ -1,7 +1,6 @@
 package saggy
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -26,58 +25,56 @@ func isSopsifiedFilename(file string) bool {
 }
 
 func getSopsifiedFilename(file string) string {
-	// ...existing code...
-	return ""
+	if strings.Contains(file, ".") {
+		parts := strings.Split(file, ".")
+		return strings.Join(parts[:len(parts)-1], ".") + ".sops." + parts[len(parts)-1]
+	}
+	return file + ".sops"
 }
 
 func getSopsifiedDirname(dir string) string {
-	// ...existing code...
-	return ""
+	return dir + ".sops"
 }
 
-func createTempFile() string {
+func createTempFile() (string, *SaggyError) {
 	tmpFile, err := os.CreateTemp("", "saggy")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to create temporary file:", err)
-		os.Exit(1)
+		return "", &SaggyError{"Failed to create temporary file", err}
 	}
 	tmpFile.Close()
-	return tmpFile.Name()
+	return tmpFile.Name(), nil
 }
 
-func createTempDir() string {
+func createTempDir() (string, *SaggyError) {
 	tmpDir, err := os.MkdirTemp("", "saggy")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to create temporary directory:", err)
-		os.Exit(1)
+		return "", &SaggyError{"Failed to create temporary directory", err}
 	}
-	return tmpDir
+	return tmpDir, nil
 }
 
-func runCommand(command, target string) {
+func runCommand(command, target string) *SaggyError {
 	cmd := exec.Command("sh", "-c", strings.ReplaceAll(command, "{}", target))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to run command:", err)
-		os.Exit(1)
+		return &SaggyError{"Failed to run command", err}
 	}
+	return nil
 }
 
-func isDir(path string) bool {
+func isDir(path string) (bool, *SaggyError) {
 	info, err := os.Stat(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to stat path:", err)
-		os.Exit(1)
+		return false, &SaggyError{"Failed to stat path", err}
 	}
-	return info.IsDir()
+	return info.IsDir(), nil
 }
 
-func isFile(path string) bool {
+func isFile(path string) (bool, *SaggyError) {
 	info, err := os.Stat(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to stat path:", err)
-		os.Exit(1)
+		return false, &SaggyError{"Failed to stat path", err}
 	}
-	return !info.IsDir()
+	return !info.IsDir(), nil
 }

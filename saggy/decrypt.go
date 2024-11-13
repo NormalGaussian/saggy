@@ -1,44 +1,44 @@
 package saggy
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
-func Decrypt(from, to string) {
-	if isFile(from) {
-		DecryptFile(from, to)
+func Decrypt(from, to string) *SaggyError {
+	if is_dir, s_err := isDir(from); s_err != nil {
+		return s_err
+	} else if is_dir {
+		return DecryptFolder(from, to)
 	} else {
-		DecryptFolder(from, to)
+		return DecryptFile(from, to)
 	}
 }
 
-func DecryptFile(from, to string) {
+func DecryptFile(from, to string) *SaggyError {
 	if err := os.MkdirAll(filepath.Dir(to), 0755); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to create directory:", err)
-		os.Exit(1)
+		return NewSaggyError("Failed to create directory:", err)
 	}
 
 	cmd := exec.Command("sops", "--decrypt", from)
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to decrypt file:", err)
-		os.Exit(1)
+		return NewSaggyError("Failed to decrypt file:", err)
 	}
 
 	if err := os.WriteFile(to, output, 0644); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to write decrypted file:", err)
-		os.Exit(1)
+		return NewSaggyError("Failed to write decrypted file:", err)
 	}
+
+	return nil
 }
 
-func DecryptFolder(from, to string) {
+func DecryptFolder(from, to string) *SaggyError {
 	from = endWithSlash(from)
 	to = endWithSlash(to)
 
-	err := filepath.Walk(from, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(from, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -64,7 +64,7 @@ func DecryptFolder(from, to string) {
 	})
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to decrypt folder:", err)
-		os.Exit(1)
+		return NewSaggyError("Failed to decrypt folder:", err)
 	}
+	return nil
 }
