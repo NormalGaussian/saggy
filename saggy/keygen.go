@@ -2,13 +2,14 @@ package saggy
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
-func Keygen() *SaggyError {
-	if _, err := os.Stat(keyFile); err == nil {
+func Keygen() error {
+	if stat, err := os.Stat(keyFile); err == nil && stat != nil {
 		return NewSaggyError("Key already exists - to generate a new key, delete the existing key\n"+
 			"1. Decrypt the folders\n"+
 			"  saggy decrypt <target> <destination>\n"+
@@ -19,7 +20,9 @@ func Keygen() *SaggyError {
 			"3. Run this command again\n"+
 			"  saggy keygen\n"+
 			"4. Encrypt the folders\n"+
-			"  saggy encrypt <target> <destination>", err)
+			"  saggy encrypt <target> <destination>\n", err)
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return NewSaggyError("Unable to determine if the key file already exists", err)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(keyFile), 0755); err != nil {
@@ -27,8 +30,8 @@ func Keygen() *SaggyError {
 	}
 
 	cmd := exec.Command("age-keygen", "-o", keyFile)
-	if err := cmd.Run(); err != nil {
-		return NewSaggyError("Failed to generate the key", err)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return NewExecutionError("Failed to generate the key", string(output), cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
 	}
 
 	publicKeyCmd := exec.Command("age-keygen", "-y", keyFile)
@@ -37,7 +40,7 @@ func Keygen() *SaggyError {
 		return NewSaggyError("Failed to get public key", err)
 	}
 
-	if _, err := os.Stat(publicKeysFile); os.IsNotExist(err) {
+	if _, err := os.Stat(publicKeysFile); errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(filepath.Dir(publicKeysFile), 0755); err != nil {
 			return NewSaggyError("Failed to create directory", err)
 		}

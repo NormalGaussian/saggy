@@ -44,7 +44,6 @@ AGE_PUBLIC_KEYS=""
 if [[ -e "$SAGGY_PUBLIC_KEYS_FILE" ]]; then
     AGE_PUBLIC_KEYS="$(jq -r '["--age", .[]] | join(" ")' "$SAGGY_PUBLIC_KEYS_FILE")"
 fi
-export AGE_PUBLIC_KEYS
 
 is_sopsified_filename() {
     FILE="$1"

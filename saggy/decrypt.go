@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-func Decrypt(from, to string) *SaggyError {
+func Decrypt(from, to string) error {
 	if is_dir, s_err := isDir(from); s_err != nil {
 		return s_err
 	} else if is_dir {
@@ -16,13 +16,15 @@ func Decrypt(from, to string) *SaggyError {
 	}
 }
 
-func DecryptFile(from, to string) *SaggyError {
+func DecryptFile(from, to string) error {
 	if err := os.MkdirAll(filepath.Dir(to), 0755); err != nil {
 		return NewSaggyError("Failed to create directory:", err)
 	}
 
 	cmd := exec.Command("sops", "--decrypt", from)
+	cmd.Env = []string{"SOPS_AGE_KEY_FILE=" + keyFile}
 	output, err := cmd.Output()
+
 	if err != nil {
 		return NewSaggyError("Failed to decrypt file:", err)
 	}
@@ -34,7 +36,7 @@ func DecryptFile(from, to string) *SaggyError {
 	return nil
 }
 
-func DecryptFolder(from, to string) *SaggyError {
+func DecryptFolder(from, to string) error {
 	from = endWithSlash(from)
 	to = endWithSlash(to)
 

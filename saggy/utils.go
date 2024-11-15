@@ -36,45 +36,43 @@ func getSopsifiedDirname(dir string) string {
 	return dir + ".sops"
 }
 
-func createTempFile() (string, *SaggyError) {
+func createTempFile() (string, error) {
 	tmpFile, err := os.CreateTemp("", "saggy")
 	if err != nil {
-		return "", &SaggyError{"Failed to create temporary file", err}
+		return "", NewSaggyError_skipFrames("Failed to create temporary file", err, nil, 2)
 	}
 	tmpFile.Close()
 	return tmpFile.Name(), nil
 }
 
-func createTempDir() (string, *SaggyError) {
+func createTempDir() (string, error) {
 	tmpDir, err := os.MkdirTemp("", "saggy")
 	if err != nil {
-		return "", &SaggyError{"Failed to create temporary directory", err}
+		return "", NewSaggyError_skipFrames("Failed to create temporary directory", err, nil, 2)
 	}
 	return tmpDir, nil
 }
 
-func runCommand(command, target string) *SaggyError {
+func runCommand(command, target string) error {
 	cmd := exec.Command("sh", "-c", strings.ReplaceAll(command, "{}", target))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return &SaggyError{"Failed to run command", err}
+	if output, err := cmd.Output(); err != nil {
+		return NewExecutionError("Failed to run command", string(output), cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
 	}
 	return nil
 }
 
-func isDir(path string) (bool, *SaggyError) {
+func isDir(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return false, &SaggyError{"Failed to stat path", err}
+		return false, NewSaggyErrorWithMeta("Failed to stat path", err, info)
 	}
 	return info.IsDir(), nil
 }
 
-func isFile(path string) (bool, *SaggyError) {
+func isFile(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return false, &SaggyError{"Failed to stat path", err}
+		return false, NewSaggyErrorWithMeta("Failed to stat path", err, info)
 	}
 	return !info.IsDir(), nil
 }

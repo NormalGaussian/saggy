@@ -1,18 +1,94 @@
 package saggy
 
+import (
+	"fmt"
+	"runtime"
+	"strings"
+)
+
 type SaggyError struct {
 	Message string
 	Err     error
+	File    string
+	Line    int
+	Meta    interface{}
+}
+
+func stringifyStruct(s interface{}) string {
+	if s == nil {
+		return ""
+	}
+	return fmt.Sprintf("%+v", s)
+}
+
+func indent(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = "\t" + line
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (e *SaggyError) Error() string {
-	if e.Err != nil {
-		return e.Message + ": " + e.Err.Error()
-	} else {
-		return e.Message
+	if e == nil {
+		return "SaggyError is nil"
 	}
+	result := "SaggyError"
+
+	location := ""
+	location += e.File
+	if e.File != "" && e.Line != 0 {
+		location += ":"
+	}
+	location += fmt.Sprint(e.Line)
+
+	if location != "" {
+		result += "@" + location
+	}
+
+	if e.Message != "" {
+		result += ": " + e.Message
+	}
+
+	if e.Err != nil {
+		result += "\n\t" + e.Err.Error()
+	}
+
+	if e.Meta != nil {
+		result += "\n\t" + indent(stringifyStruct(e.Meta))
+	}
+
+	return result
 }
 
-func NewSaggyError(message string, err error) *SaggyError {
-	return &SaggyError{Message: message, Err: err}
+func (e *SaggyError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
+func NewSaggyError_skipFrames(message string, err error, meta interface{}, skip int) error {
+	_, file, line, _ := runtime.Caller(skip + 1)
+	error := &SaggyError{Message: message, Err: err, Meta: meta, File: file, Line: line}
+	return error
+}
+
+func NewSaggyErrorWithMeta(message string, err error, meta interface{}) error {
+	return NewSaggyError_skipFrames(message, err, meta, 1)
+}
+
+func NewSaggyError(message string, err error) error {
+	return NewSaggyError_skipFrames(message, err, nil, 1)
+}
+
+func NewExecutionError(message string, output string, status int, command string, args []string, dir string) error {
+	meta := struct {
+		Status  int
+		Output  string
+		Command string
+		Args    []string
+		Dir     string
+	}{Status: status, Output: output, Command: command, Args: args, Dir: dir}
+	return NewSaggyError_skipFrames(message, nil, meta, 2)
 }

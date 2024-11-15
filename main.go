@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -9,9 +10,10 @@ import (
 )
 
 type CLIError struct {
-	Code    int
-	Message string
-	Err     error
+	Code       int
+	Message    string
+	PrintUsage bool
+	Err        error
 }
 
 func (e *CLIError) Error() string {
@@ -22,8 +24,8 @@ func (e *CLIError) Error() string {
 	}
 }
 
-func NewCLIError(code int, message string, err error) *CLIError {
-	return &CLIError{Code: code, Message: message, Err: err}
+func NewCLIError(code int, message string, err error, printUsage bool) *CLIError {
+	return &CLIError{Code: code, Message: message, Err: err, PrintUsage: printUsage}
 }
 
 func cli(argv []string) error {
@@ -38,7 +40,7 @@ func cli(argv []string) error {
 	switch cmd {
 	case "encrypt":
 		if len(args) < 1 {
-			return NewCLIError(1, "Nothing provided to encrypt", nil)
+			return NewCLIError(1, "Nothing provided to encrypt", nil, true)
 		}
 		source := args[0]
 		destination := ""
@@ -48,7 +50,7 @@ func cli(argv []string) error {
 		return saggy.Encrypt(source, destination)
 	case "decrypt":
 		if len(args) < 1 {
-			return NewCLIError(1, "Nothing provided to decrypt", nil)
+			return NewCLIError(1, "Nothing provided to decrypt", nil, true)
 		}
 		source := args[0]
 		destination := ""
@@ -60,7 +62,7 @@ func cli(argv []string) error {
 		return saggy.Keygen()
 	case "with":
 		if len(args) < 2 {
-			return NewCLIError(1, "Usage: with <target> [-w] -- <command>", nil)
+			return NewCLIError(1, "Usage: with <target> [-w] -- <command>", nil, true)
 		}
 		target := args[0]
 		mode := "read"
@@ -72,23 +74,32 @@ func cli(argv []string) error {
 		command := strings.Join(args[commandIndex+1:], " ")
 		return saggy.With(target, command, mode)
 	default:
-		return NewCLIError(1, "Unknown command: "+cmd, nil)
+		return NewCLIError(1, "Unknown command: "+cmd, nil, true)
 	}
+}
+
+func stringifyStruct(s interface{}) string {
+	bytes, err := json.Marshal(s)
+	if err != nil {
+		return fmt.Sprintf("%+v", s)
+	}
+	return string(bytes)
 }
 
 func main() {
 	// Invoke the CLI
-	err := cli(os.Args)
-	if err != nil {
-		if errors.As(err, &CLIError{}) {
-			fmt.Fprintln(os.Stderr, err)
-			if err.(*CLIError).Code == 1 {
+	if err := cli(os.Args); err != nil {
+		var cliErr *CLIError
+		if errors.As(err, &cliErr) {
+			fmt.Fprintln(os.Stderr, err.Error())
+			if cliErr.PrintUsage {
 				printUsage()
 			}
-			os.Exit(err.(*CLIError).Code)
+			os.Exit(cliErr.Code)
 		}
-		if errors.As(err, &saggy.SaggyError{}) {
-			fmt.Fprintln(os.Stderr, err)
+		saggyError := &saggy.SaggyError{}
+		if errors.As(err, &saggyError) {
+			fmt.Fprintln(os.Stderr, saggyError.Error())
 			os.Exit(2)
 		}
 

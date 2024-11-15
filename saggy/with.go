@@ -4,7 +4,7 @@ import (
 	"os"
 )
 
-func With(target, command, mode string) *SaggyError {
+func With(target, command, mode string) error {
 	if is_dir, s_err := isDir(target); s_err != nil {
 		return s_err
 	} else if is_dir {
@@ -14,7 +14,7 @@ func With(target, command, mode string) *SaggyError {
 	}
 }
 
-func withFile(file, command, mode string) *SaggyError {
+func withFile(file, command, mode string) error {
 	tmpFile, s_err := createTempFile()
 	if s_err != nil {
 		return NewSaggyError("Failed to create temporary file", s_err)
@@ -35,7 +35,7 @@ func withFile(file, command, mode string) *SaggyError {
 	return nil
 }
 
-func withFolder(folder, command, mode string) *SaggyError {
+func withFolder(folder, command, mode string) error {
 	tmpFolder, s_err := createTempDir()
 	if s_err != nil {
 		return NewSaggyError("Failed to create temporary directory", s_err)

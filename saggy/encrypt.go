@@ -1,12 +1,13 @@
 package saggy
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
-func Encrypt(from, to string) *SaggyError {
+func Encrypt(from, to string) error {
 	if is_dir, s_err := isDir(from); s_err != nil {
 		return s_err
 	} else if is_dir {
@@ -16,7 +17,7 @@ func Encrypt(from, to string) *SaggyError {
 	}
 }
 
-func EncryptFile(from, to string) *SaggyError {
+func EncryptFile(from, to string) error {
 	if to == "" {
 		to = getSopsifiedFilename(from)
 	}
@@ -34,7 +35,7 @@ func EncryptFile(from, to string) *SaggyError {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return NewSaggyError("Failed to encrypt file", err)
+		return NewExecutionError("Failed to encrypt file", string(output), cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(to), 0755); err != nil {
@@ -47,7 +48,7 @@ func EncryptFile(from, to string) *SaggyError {
 	return nil
 }
 
-func EncryptFolder(from, to string) *SaggyError {
+func EncryptFolder(from, to string) error {
 	from = endWithSlash(from)
 	to = endWithSlash(to)
 
@@ -92,7 +93,8 @@ func EncryptFolder(from, to string) *SaggyError {
 		return nil
 	})
 	if err != nil {
-		if saggyErr, ok := err.(*SaggyError); ok {
+		saggyErr := &SaggyError{}
+		if errors.As(err, &saggyErr) {
 			return saggyErr
 		}
 		return NewSaggyError("Failed to walk directory", err)

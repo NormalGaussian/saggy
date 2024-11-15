@@ -14,7 +14,6 @@ var (
 	keyFile        = getEnv("SAGGY_KEY_FILE", filepath.Join(secretsDir, "age.key"))
 	publicKeysFile = getEnv("SAGGY_PUBLIC_KEYS_FILE", filepath.Join(secretsDir, "public-age-keys.json"))
 	keyName        = getEnv("SAGGY_KEYNAME", strings.ToLower(getHostname()))
-	sopsAgeKeyFile = keyFile
 )
 
 func getEnv(key, defaultValue string) string {
@@ -33,7 +32,7 @@ func getHostname() string {
 	return hostname
 }
 
-func getAgePublicKeys() ([]string, *SaggyError) {
+func getAgePublicKeys() ([]string, error) {
 	if _, err := os.Stat(publicKeysFile); errors.Is(err, os.ErrNotExist) {
 		return []string{}, nil
 	}

@@ -84,10 +84,7 @@ run_test() {
         touch "$RESULTS_DIR/$test_id.success"
     else
         echo "$?" > "$RESULTS_DIR/$test_id.failure"
-        if [[ -n "${SAVE_ON_FAILURE:-}" ]]; then
-            trap - EXIT
-            return
-        fi
+        return
     fi
     rm -rf "$TEST_DIR"
 }
@@ -136,6 +133,10 @@ for FILE in "$RESULTS_DIR"/*; do
     fi
     echo "Unknown result file: $FILE"
 done
+
+if [[ "$FAILURE_COUNT" -gt 0 ]] && [[ -n "${SAVE_ON_FAILURE:-}" ]]; then
+    trap - EXIT
+fi
 
 echo -e "${BOLD}${WHITE}Ran $TEST_COUNT tests. ${GREEN}$SUCCESS_COUNT${WHITE} succeeded, ${RED}$FAILURE_COUNT${WHITE} failed, ${YELLOW}$SKIPPED_COUNT${WHITE} skipped.${RESET}"
 echo "Elapsed time: $ELAPSED milliseconds."
