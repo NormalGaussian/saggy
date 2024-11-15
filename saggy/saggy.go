@@ -48,8 +48,8 @@ func getAgePublicKeys() ([]string, error) {
 	}
 
 	publicKeys := []string{}
-	for key, value := range keys {
-		publicKeys = append(publicKeys, key+"="+value)
+	for _, value := range keys {
+		publicKeys = append(publicKeys, value)
 	}
 
 	return publicKeys, nil

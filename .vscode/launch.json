@@ -10,8 +10,11 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}",
-            "args": ["keygen"],
-            "cwd": "${workspaceFolder}/tests/tmp/path_adding_keys/should_be_able_to_generate_a_new_key.sh",
+            "args": [
+                "encrypt",
+                "/home/eoin/Coding/saggy/tests/tmp/path_encrypt_decrypt_file/should_encrypt_a_file_to_automatically_determined_location.sh/tmp/tmp.WdRShXlOxn/plaintext"
+            ],
+            "cwd": "${workspaceFolder}/tests/tmp/path_encrypt_decrypt_file/should_encrypt_a_file_to_automatically_determined_location.sh/",
         }
     ]
 }

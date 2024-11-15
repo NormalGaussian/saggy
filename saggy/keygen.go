@@ -58,7 +58,7 @@ func Keygen() error {
 	if err := json.Unmarshal(file, &publicKeys); err != nil {
 		return NewSaggyError("Failed to parse public keys file", err)
 	}
-	publicKeys[filepath.Base(keyFile)] = string(publicKey)
+	publicKeys[keyName] = string(publicKey)
 	updatedKeys, err := json.MarshalIndent(publicKeys, "", "  ")
 	if err != nil {
 		return NewSaggyError("Failed to serialize public keys", err)

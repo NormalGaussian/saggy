@@ -30,9 +30,8 @@ func EncryptFile(from, to string) error {
 	for _, key := range keys {
 		args = append(args, "--age", key)
 	}
-	args = append(args, from)
+	args = append(args, from, to)
 	cmd := exec.Command("sops", args...)
-
 	output, err := cmd.Output()
 	if err != nil {
 		return NewExecutionError("Failed to encrypt file", string(output), cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)

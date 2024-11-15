@@ -1,6 +1,7 @@
 package saggy
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"strings"
@@ -14,11 +15,12 @@ type SaggyError struct {
 	Meta    interface{}
 }
 
-func stringifyStruct(s interface{}) string {
+func jsonifyStruct(s interface{}) string {
 	if s == nil {
 		return ""
 	}
-	return fmt.Sprintf("%+v", s)
+	b, _ := json.MarshalIndent(s, "\t", "\t")
+	return string(b)
 }
 
 func indent(s string) string {
@@ -55,7 +57,7 @@ func (e *SaggyError) Error() string {
 	}
 
 	if e.Meta != nil {
-		result += "\n\t" + indent(stringifyStruct(e.Meta))
+		result += "\n\t" + indent(jsonifyStruct(e.Meta))
 	}
 
 	return result
@@ -69,17 +71,17 @@ func (e *SaggyError) Unwrap() error {
 }
 
 func NewSaggyError_skipFrames(message string, err error, meta interface{}, skip int) error {
-	_, file, line, _ := runtime.Caller(skip + 1)
+	_, file, line, _ := runtime.Caller(skip)
 	error := &SaggyError{Message: message, Err: err, Meta: meta, File: file, Line: line}
 	return error
 }
 
 func NewSaggyErrorWithMeta(message string, err error, meta interface{}) error {
-	return NewSaggyError_skipFrames(message, err, meta, 1)
+	return NewSaggyError_skipFrames(message, err, meta, 0)
 }
 
 func NewSaggyError(message string, err error) error {
-	return NewSaggyError_skipFrames(message, err, nil, 1)
+	return NewSaggyError_skipFrames(message, err, nil, 0)
 }
 
 func NewExecutionError(message string, output string, status int, command string, args []string, dir string) error {

@@ -3,6 +3,7 @@ package saggy
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -25,14 +26,17 @@ func isSopsifiedFilename(file string) bool {
 }
 
 func getSopsifiedFilename(file string) string {
-	if strings.Contains(file, ".") {
-		parts := strings.Split(file, ".")
-		return strings.Join(parts[:len(parts)-1], ".") + ".sops." + parts[len(parts)-1]
-	}
-	return file + ".sops"
+	dir := filepath.Dir(file)
+	base := filepath.Base(file)
+	ext := filepath.Ext(base)
+
+	return filepath.Join(dir, base[:len(base) - len(ext)]+".sops")
 }
 
 func getSopsifiedDirname(dir string) string {
+	if dir[len(dir)-1] == '/' {
+		dir = dir[:len(dir)-1]
+	}
 	return dir + ".sops"
 }
 
