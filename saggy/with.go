@@ -37,7 +37,8 @@ func withFile(file string, command []string, mode string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {
-		return NewExecutionError("Failed to run command", "", cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
+		exactError := NewExecutionError("Failed to run command", "", cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
+		return NewSilentError(exactError, cmd.ProcessState.ExitCode())
 	}
 
 	if mode == "write" {

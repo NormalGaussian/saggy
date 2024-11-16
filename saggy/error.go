@@ -7,6 +7,23 @@ import (
 	"strings"
 )
 
+type SilentError struct {
+	Err error
+	ExitCode int
+}
+
+func (e *SilentError) Error() string {
+	return ""
+}
+
+func (e *SilentError) Unwrap() error {
+	return e.Err
+}
+
+func NewSilentError(err error, exitCode int) error {
+	return &SilentError{Err: err, ExitCode: exitCode}
+}
+
 type SaggyError struct {
 	Message string
 	Err     error

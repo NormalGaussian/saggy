@@ -88,6 +88,10 @@ func stringifyStruct(s interface{}) string {
 func main() {
 	// Invoke the CLI
 	if err := cli(os.Args); err != nil {
+		var SilentError *saggy.SilentError
+		if errors.As(err, &SilentError) {
+			os.Exit(SilentError.ExitCode)
+		}
 		var cliErr *CLIError
 		if errors.As(err, &cliErr) {
 			fmt.Fprintln(os.Stderr, err.Error())
