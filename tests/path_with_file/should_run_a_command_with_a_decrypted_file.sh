@@ -19,4 +19,4 @@ $SAGGY with "$ENCRYPTED_FILE" -- cat {} > "$DECRYPTED_FILE"
 
 # Verify
 if [ ! -f "$DECRYPTED_FILE" ]; then echo "Should create a decrypted file."; exit 1; fi
-if ! diff "$PLAINTEXT_FILE" "$DECRYPTED_FILE" >/dev/null; then echo "Should contain the decrypted content."; exit 1; fi
+if ! diff "$PLAINTEXT_FILE" "$DECRYPTED_FILE"; then echo "Should contain the decrypted content."; exit 1; fi

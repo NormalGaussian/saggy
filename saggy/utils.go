@@ -8,21 +8,35 @@ import (
 )
 
 func unsopsifyFilename(file string) string {
-	if len(file) > 5 && file[len(file)-5:] == ".sops" {
-		return file[:len(file)-5]
+	dirname := filepath.Dir(file)
+	base := filepath.Base(file)
+	parts := strings.Split(base, ".")
+	if len(parts) == 2 && parts[1] == "sops" {
+		return filepath.Join(dirname, parts[0])
+	} else if len(parts) > 2 && parts[len(parts)-2] == "sops" {
+		ext := filepath.Ext(base)
+		return filepath.Join(dirname, base[:len(base)-len(ext)-5]+ext)
 	}
 	return file
 }
 
-func endWithSlash(path string) string {
-	if path[len(path)-1] != '/' {
-		return path + "/"
+func unsopsifyDirectory(dir string) string {
+	filepath.Clean(dir)
+	if len(dir) > 5 && dir[len(dir)-5:] == ".sops" {
+		return dir[:len(dir)-5]
 	}
-	return path
+	return dir
 }
 
 func isSopsifiedFilename(file string) bool {
-	return len(file) > 5 && file[len(file)-5:] == ".sops"
+	base := filepath.Base(file)
+	parts := strings.Split(base, ".")
+	if len(parts) == 2 && parts[1] == "sops" {
+		return true
+	} else if len(parts) > 2 && parts[len(parts)-2] == "sops" {
+		return true
+	}
+	return false
 }
 
 func getSopsifiedFilename(file string) string {
@@ -30,7 +44,7 @@ func getSopsifiedFilename(file string) string {
 	base := filepath.Base(file)
 	ext := filepath.Ext(base)
 
-	return filepath.Join(dir, base[:len(base) - len(ext)]+".sops")
+	return filepath.Join(dir, base[:len(base)-len(ext)]+".sops"+ext)
 }
 
 func getSopsifiedDirname(dir string) string {

@@ -2,9 +2,11 @@ package saggy
 
 import (
 	"os"
+	"os/exec"
+	"strings"
 )
 
-func With(target, command, mode string) error {
+func With(target string, command []string, mode string) error {
 	if is_dir, s_err := isDir(target); s_err != nil {
 		return s_err
 	} else if is_dir {
@@ -14,7 +16,7 @@ func With(target, command, mode string) error {
 	}
 }
 
-func withFile(file, command, mode string) error {
+func withFile(file string, command []string, mode string) error {
 	tmpFile, s_err := createTempFile()
 	if s_err != nil {
 		return NewSaggyError("Failed to create temporary file", s_err)
@@ -25,8 +27,17 @@ func withFile(file, command, mode string) error {
 		return NewSaggyError("Failed to decrypt file", s_err)
 	}
 
-	if s_err := runCommand(command, tmpFile); s_err != nil {
-		return NewSaggyError("Failed to run command", s_err)
+	// Substitute {} with the temporary file
+	for i := range command {
+		command[i] = strings.ReplaceAll(command[i], "{}", tmpFile)
+	}
+	subcommand := strings.Join(command, " ")
+
+	cmd := exec.Command("sh", "-c", subcommand)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	if err := cmd.Run(); err != nil {
+		return NewExecutionError("Failed to run command", "", cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
 	}
 
 	if mode == "write" {
@@ -35,7 +46,7 @@ func withFile(file, command, mode string) error {
 	return nil
 }
 
-func withFolder(folder, command, mode string) error {
+func withFolder(folder string, command []string, mode string) error {
 	tmpFolder, s_err := createTempDir()
 	if s_err != nil {
 		return NewSaggyError("Failed to create temporary directory", s_err)
@@ -46,8 +57,17 @@ func withFolder(folder, command, mode string) error {
 		return NewSaggyError("Failed to decrypt folder", s_err)
 	}
 
-	if s_err := runCommand(command, tmpFolder); s_err != nil {
-		return NewSaggyError("Failed to run command", s_err)
+	// Substitute {} with the temporary folder and quotes all args
+	for i := range command {
+		command[i] = strings.ReplaceAll(command[i], "{}", tmpFolder)
+	}
+	subcommand := strings.Join(command, " ")
+
+	cmd := exec.Command("sh", "-c", subcommand)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	if err := cmd.Run(); err != nil {
+		return NewExecutionError("Failed to run command", "", cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
 	}
 
 	if mode == "write" {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"saggy"
-	"strings"
 )
 
 type CLIError struct {
@@ -71,7 +70,7 @@ func cli(argv []string) error {
 			mode = "write"
 			commandIndex = 2
 		}
-		command := strings.Join(args[commandIndex+1:], " ")
+		command := args[commandIndex+1:]
 		return saggy.With(target, command, mode)
 	default:
 		return NewCLIError(1, "Unknown command: "+cmd, nil, true)

@@ -2,7 +2,7 @@
 
 ## Setup
 
-PLAINTEXT_FILE="$(mktemp -d)/plaintext"
+PLAINTEXT_FILE="./plaintext"
 
 mkdir -p "$(dirname "$PLAINTEXT_FILE")"
 

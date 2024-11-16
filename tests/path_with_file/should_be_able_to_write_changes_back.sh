@@ -2,10 +2,10 @@
 
 ## Setup
 
-ENCRYPTED_FILE="$(mktemp -d)/testfile.sops"
-DECRYPTED_FILE="$(mktemp -d)/testfile.decrypted"
-PLAINTEXT_FILE="$(mktemp -d)/testfile.plaintext"
-REPLACEMENT_PLAINTEXT_FILE="$(mktemp -d)/new_testfile.plaintext"
+ENCRYPTED_FILE="./testfile.sops"
+DECRYPTED_FILE="./testfile.decrypted"
+PLAINTEXT_FILE="./testfile.plaintext"
+REPLACEMENT_PLAINTEXT_FILE="./new_testfile.plaintext"
 
 mkdir -p "$(dirname "$ENCRYPTED_FILE")"
 mkdir -p "$(dirname "$DECRYPTED_FILE")"

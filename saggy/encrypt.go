@@ -48,9 +48,7 @@ func EncryptFile(from, to string) error {
 }
 
 func EncryptFolder(from, to string) error {
-	from = endWithSlash(from)
-	to = endWithSlash(to)
-
+	from = filepath.Clean(from)
 	if to == "" {
 		to = getSopsifiedDirname(from)
 	}
@@ -70,8 +68,8 @@ func EncryptFolder(from, to string) error {
 				return err
 			}
 
-			encryptedFile := getSopsifiedFilename(relPath)
-			if err := os.MkdirAll(filepath.Dir(to+encryptedFile), 0755); err != nil {
+			encryptedFile := filepath.Join(to, getSopsifiedFilename(relPath))
+			if err := os.MkdirAll(filepath.Dir(encryptedFile), 0755); err != nil {
 				return NewSaggyError("Failed to create directory", err)
 			}
 
@@ -85,7 +83,7 @@ func EncryptFolder(from, to string) error {
 			if err != nil {
 				return NewSaggyError("Failed to encrypt file", err)
 			}
-			if err := os.WriteFile(to+encryptedFile, output, 0644); err != nil {
+			if err := os.WriteFile(encryptedFile, output, 0644); err != nil {
 				return NewSaggyError("Failed to write encrypted file", err)
 			}
 		}

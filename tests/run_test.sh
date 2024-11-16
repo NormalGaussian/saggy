@@ -13,6 +13,8 @@ GREY="\033[90m"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 cd "$SCRIPT_DIR"
 
+TEST_DIR="${TEST_DIR:-$SCRIPT_DIR}"
+
 SAGGY="${SAGGY:-$SCRIPT_DIR/../saggy.sh}"
 
 TMPDIR="$SCRIPT_DIR/tmp"
@@ -66,19 +68,27 @@ CHILD_ENV+=("PATH=$PATH")
 
 run_test() {
     local test_script=$1
+    # Avoid collisions as much as possible
     NAME_HASH="$(echo "$test_script" | md5sum - | head -c 4)"
-    local test_id="$NAME_HASH-$(basename "$test_script")"
+    
+    TEST_NAME="${test_script#$TEST_DIR/}"
+    TEST_NAME="${TEST_NAME%.sh}"
+    TEST_NAME="${TEST_NAME#.}"
+    TEST_NAME="${TEST_NAME#/}"
+    TEST_NAME="${TEST_NAME//\// }"
+
+    local test_id="$TEST_NAME $NAME_HASH"
 
     if ! [[ "$test_script" =~ $FILTER ]]; then
         touch "$RESULTS_DIR/$test_id.skipped"
         return
     fi
 
-    TEST_DIR="$TMPDIR/$test_script"
-    TEST_TEMP_DIR="$TEST_DIR/tmp"
+    CHILD_TEST_DIR="$TMPDIR/$test_script"
+    TEST_TEMP_DIR="$CHILD_TEST_DIR/tmp"
     mkdir -p "$TEST_TEMP_DIR"
 
-    cd "$TEST_DIR"
+    cd "$CHILD_TEST_DIR"
 
     if env -i "${CHILD_ENV[@]}" TMPDIR="$TEST_TEMP_DIR" bash -xeuo pipefail "$SCRIPT_DIR/$test_script" > "$RESULTS_DIR/$test_id.log" 2>&1; then
         touch "$RESULTS_DIR/$test_id.success"
@@ -86,7 +96,7 @@ run_test() {
         echo "$?" > "$RESULTS_DIR/$test_id.failure"
         return
     fi
-    rm -rf "$TEST_DIR"
+    rm -rf "$CHILD_TEST_DIR"
 }
 
 export -f run_test

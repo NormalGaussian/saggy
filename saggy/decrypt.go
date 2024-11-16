@@ -17,6 +17,11 @@ func Decrypt(from, to string) error {
 }
 
 func DecryptFile(from, to string) error {
+	from = filepath.Clean(from)
+	if to == "" {
+		to = unsopsifyFilename(from)
+	}
+
 	if err := os.MkdirAll(filepath.Dir(to), 0755); err != nil {
 		return NewSaggyError("Failed to create directory:", err)
 	}
@@ -37,28 +42,34 @@ func DecryptFile(from, to string) error {
 }
 
 func DecryptFolder(from, to string) error {
-	from = endWithSlash(from)
-	to = endWithSlash(to)
+	from = filepath.Clean(from)
+	if to == "" {
+		to = unsopsifyDirectory(from)
+	}
 
 	err := filepath.WalkDir(from, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() {
-			encryptedFile := path[len(from):]
+			encryptedFile, err := filepath.Rel(from, path)
+			if err != nil {
+				return err
+			}
 			if !isSopsifiedFilename(encryptedFile) {
 				return nil
 			}
-			decryptedFile := unsopsifyFilename(encryptedFile)
-			if err := os.MkdirAll(filepath.Join(to, filepath.Dir(decryptedFile)), 0755); err != nil {
+			decryptedFile := filepath.Join(to, unsopsifyFilename(encryptedFile))
+			if err := os.MkdirAll(filepath.Dir(decryptedFile), 0755); err != nil {
 				return err
 			}
 			cmd := exec.Command("sops", "--decrypt", path)
+			cmd.Env = []string{"SOPS_AGE_KEY_FILE=" + keyFile}
 			output, err := cmd.Output()
 			if err != nil {
 				return err
 			}
-			if err := os.WriteFile(filepath.Join(to, decryptedFile), output, 0644); err != nil {
+			if err := os.WriteFile(decryptedFile, output, 0644); err != nil {
 				return err
 			}
 		}

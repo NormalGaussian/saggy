@@ -11,10 +11,15 @@
             "mode": "auto",
             "program": "${workspaceFolder}",
             "args": [
-                "encrypt",
-                "/home/eoin/Coding/saggy/tests/tmp/path_encrypt_decrypt_file/should_encrypt_a_file_to_automatically_determined_location.sh/tmp/tmp.WdRShXlOxn/plaintext"
+                "with",
+                "testdir.sops",
+                "--",
+                "cp",
+                "-r",
+                "{}/*",
+                "decrypted"
             ],
-            "cwd": "${workspaceFolder}/tests/tmp/path_encrypt_decrypt_file/should_encrypt_a_file_to_automatically_determined_location.sh/",
+            "cwd": "${workspaceFolder}/tests/tmp/path_with_directory/should_run_a_command_with_a_decrypted_directory.sh/",
         }
     ]
 }
