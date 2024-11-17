@@ -21,7 +21,21 @@ saggy with talosconfig.sops -- talosctl --config {} get rd
 ```bash
 # Generate a key
 saggy keygen
+#> A key is created in ./secrets/age.key
+#> Its public key is added to ./secrets/public-age-keys.json
+
+# Encrypt a secret
+saggy encrypt mysecret
+#> The encrypted version of the secret is stored in mysecret.sops, decryptable by all of the private keys matching public keys in ./secrets/public-age-keys.json
+
+# Use a command (secureservice list ) with the secret
+saggy with mysecret.sops -- secureservice --key {} list
 ```
+
+## Installation instructions
+
+// TODO: Use CI to generate a binary
+// TODO: publish binaries to releases
 
 ## Quick Reference
 
@@ -61,7 +75,7 @@ These are features which you may be surprised / encounter issues with not being 
 
 * Offer bundled age/sops, and default to it
 * Support non-age encryption that sops supports
-* Support more locations for keyfiles
+* Support more and better locations for keyfiles
 * Support piping
 * Officially support windows and darwin
 * Support groups
@@ -81,3 +95,11 @@ These are features which you may be surprised / encounter issues with not being 
 ## The path already trodden
 
 * Convert to go
+
+## License
+
+// TODO: add license information
+
+## Contributing
+
+// TODO: add contribution guidelines
