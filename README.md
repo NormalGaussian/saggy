@@ -70,6 +70,7 @@ These are features which you may be surprised / encounter issues with not being 
     - Saggy doesn't currently support asking for a passphrase to decrypt a key. This is wholly untested.
 * SSH key encryption
     - This is a feature of age
+* I *think* sops uses more complex logic to determine how to name the output file; and saggy likely does not match this.
 
 ## The path forwards
 
