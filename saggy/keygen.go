@@ -47,19 +47,22 @@ func Keygen() error {
 		}
 		publicKey = string(publicKey_tmp)
 	} else {
+		// Generate the key
 		k, err := age.GenerateX25519Identity()
 		if err != nil {
 			return NewSaggyError("Failed to generate the key", err)
 		}
+
+		// Extract the public key
 		publicKey = k.Recipient().String()
 
-		f, err := os.Open(keyFile)
-		if err != nil {
-			return NewSaggyError("Failed to open key file for writing", err)
-		}
-
 		// Write the private key to the key file
-		fmt.Fprintf(f, "# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), publicKey, k)
+		if f, err := os.OpenFile(keyFile, os.O_CREATE|os.O_WRONLY, 0600); err != nil {
+			return NewSaggyError("Failed to open key file for writing", err)
+		} else {
+			defer f.Close()
+			fmt.Fprintf(f, "# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), publicKey, k)
+		}
 		
 	}
 

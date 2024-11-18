@@ -88,7 +88,7 @@ func (e *SaggyError) Unwrap() error {
 }
 
 func NewSaggyError_skipFrames(message string, err error, meta interface{}, skip int) error {
-	_, file, line, _ := runtime.Caller(skip)
+	_, file, line, _ := runtime.Caller(skip + 1)
 	error := &SaggyError{Message: message, Err: err, Meta: meta, File: file, Line: line}
 	return error
 }
@@ -98,7 +98,7 @@ func NewSaggyErrorWithMeta(message string, err error, meta interface{}) error {
 }
 
 func NewSaggyError(message string, err error) error {
-	return NewSaggyError_skipFrames(message, err, nil, 0)
+	return NewSaggyError_skipFrames(message, err, nil, 1)
 }
 
 func NewExecutionError(message string, output string, status int, command string, args []string, dir string) error {
