@@ -6,17 +6,17 @@ import (
 	"path/filepath"
 )
 
-func Decrypt(from, to string) error {
+func Decrypt(keyFile, from, to string) error {
 	if is_dir, s_err := isDir(from); s_err != nil {
 		return s_err
 	} else if is_dir {
-		return DecryptFolder(from, to)
+		return DecryptFolder(keyFile, from, to)
 	} else {
-		return DecryptFile(from, to)
+		return DecryptFile(keyFile, from, to)
 	}
 }
 
-func DecryptFile(from, to string) error {
+func DecryptFile(keyFile, from, to string) error {
 	from = filepath.Clean(from)
 	if to == "" {
 		to = unsopsifyFilename(from)
@@ -41,7 +41,7 @@ func DecryptFile(from, to string) error {
 	return nil
 }
 
-func DecryptFolder(from, to string) error {
+func DecryptFolder(keyFile, from, to string) error {
 	from = filepath.Clean(from)
 	if to == "" {
 		to = unsopsifyDirectory(from)

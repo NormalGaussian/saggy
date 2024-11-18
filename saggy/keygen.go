@@ -150,7 +150,7 @@ func KeygenToStdout(format string) error {
 	return nil
 }
 
-func KeygenToFile(keyFile string, publicKeysFile string) error {
+func KeygenToFile(keyFile string, publicKeysFile string, keyName string) error {
 	if stat, err := os.Stat(keyFile); err == nil && stat != nil {
 		return NewSaggyError("Key already exists - to generate a new key, delete the existing key\n"+
 			"1. Decrypt the folders\n"+

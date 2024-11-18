@@ -6,24 +6,24 @@ import (
 	"strings"
 )
 
-func With(target string, command []string, mode string) error {
+func With(keyFile string, publicKeysFile string, target string, command []string, mode string) error {
 	if is_dir, s_err := isDir(target); s_err != nil {
 		return s_err
 	} else if is_dir {
-		return withFolder(target, command, mode)
+		return withFolder(keyFile, publicKeysFile, target, command, mode)
 	} else {
-		return withFile(target, command, mode)
+		return withFile(keyFile, publicKeysFile, target, command, mode)
 	}
 }
 
-func withFile(file string, command []string, mode string) error {
+func withFile(keyFile string, publicKeysFile string, file string, command []string, mode string) error {
 	tmpFile, s_err := createTempFile()
 	if s_err != nil {
 		return NewSaggyError("Failed to create temporary file", s_err)
 	}
 	defer os.Remove(tmpFile)
 
-	if s_err := DecryptFile(file, tmpFile); s_err != nil {
+	if s_err := DecryptFile(keyFile, file, tmpFile); s_err != nil {
 		return NewSaggyError("Failed to decrypt file", s_err)
 	}
 
@@ -42,19 +42,19 @@ func withFile(file string, command []string, mode string) error {
 	}
 
 	if mode == "write" {
-		return EncryptFile(tmpFile, file)
+		return EncryptFile(publicKeysFile, tmpFile, file)
 	}
 	return nil
 }
 
-func withFolder(folder string, command []string, mode string) error {
+func withFolder(keyFile string, publicKeysFile string, folder string, command []string, mode string) error {
 	tmpFolder, s_err := createTempDir()
 	if s_err != nil {
 		return NewSaggyError("Failed to create temporary directory", s_err)
 	}
 	defer os.RemoveAll(tmpFolder)
 
-	if s_err := DecryptFolder(folder, tmpFolder); s_err != nil {
+	if s_err := DecryptFolder(keyFile, folder, tmpFolder); s_err != nil {
 		return NewSaggyError("Failed to decrypt folder", s_err)
 	}
 
@@ -72,7 +72,7 @@ func withFolder(folder string, command []string, mode string) error {
 	}
 
 	if mode == "write" {
-		return EncryptFolder(tmpFolder, folder)
+		return EncryptFolder(publicKeysFile, tmpFolder, folder)
 	}
 	return nil
 }
