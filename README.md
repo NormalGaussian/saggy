@@ -99,7 +99,9 @@ These are features which you may be surprised / encounter issues with not being 
 
 ## License
 
-// TODO: add license information
+The code in this project is licensed under the BSD-3-Clause license.
+
+The produced binary bundles [age](https://github.com/FiloSottile/age) ([BSD-3-Clause](https://github.com/FiloSottile/age/blob/main/LICENSE)), and [sops](https://getsops.io) ([MPL-2.0 : Mozilla Public License 2.0](https://github.com/getsops/sops/blob/main/LICENSE))
 
 ## Contributing
 

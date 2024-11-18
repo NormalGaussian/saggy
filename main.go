@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"saggy"
+	_ "embed"
 )
 
 type CLIError struct {
@@ -27,10 +28,17 @@ func NewCLIError(code int, message string, err error, printUsage bool) *CLIError
 	return &CLIError{Code: code, Message: message, Err: err, PrintUsage: printUsage}
 }
 
+//go:embed LICENSE
+var LICENSE_SAGGY string
+//go:embed LICENSE_AGE
+var LICENSE_AGE string
+//go:embed LICENSE_SOPS
+var LICENSE_SOPS string
+
 func cli(argv []string) error {
-	if len(os.Args) < 2 {
+	if len(argv) < 2 {
 		printUsage()
-		os.Exit(1)
+		return NewCLIError(1, "No command provided", nil, false)
 	}
 
 	cmd := argv[1]
@@ -72,6 +80,28 @@ func cli(argv []string) error {
 		}
 		command := args[commandIndex+1:]
 		return saggy.With(target, command, mode)
+	case "license":
+		if len(args) >= 1 && args[0] == "--full" {
+			fmt.Println("The saggy source is primarily licensed under the BSD-3-Clause license; its dependencies are licensed under their respective licenses, listed as follows:")
+			fmt.Println("")
+			fmt.Println("Saggy is licensed under the BSD-3-Clause license:")
+			fmt.Println(LICENSE_SAGGY)
+			fmt.Println("")
+			fmt.Println("parts of the age project is bundled, and is licensed under the BSD-3-Clause license:")
+			fmt.Println(LICENSE_AGE)
+			fmt.Println("")
+			fmt.Println("parts of the sops project is bundled, and is licensed under the MPL 2.0 license:")
+			fmt.Println(LICENSE_SOPS)
+			return nil
+		}
+		fmt.Println("The saggy source is primarily licensed under the BSD-3-Clause license; its dependencies are licensed under their respective licenses, listed as follows:")
+		fmt.Println("")
+		fmt.Println("Saggy is licensed under the BSD-3-Clause license")
+		fmt.Println("parts of the age project is bundled, and is licensed under the BSD-3-Clause license")
+		fmt.Println("parts of the sops project is bundled, and is licensed under the MPL 2.0 license")
+		fmt.Println("")
+		fmt.Println("to see the full license text, run `saggy license --full`")
+		return nil
 	default:
 		return NewCLIError(1, "Unknown command: "+cmd, nil, true)
 	}
