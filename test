@@ -3,8 +3,27 @@
 BOLD=$(tput bold)
 WHITE=$(tput setaf 7)
 RESET=$(tput sgr0)
+FIRST=false
 for SUITE in $(ls -1 ./tests/test_*); do
-    echo -e "$BOLD${WHITE}Running $SUITE$RESET"
-    $SUITE | grep -P "(FAILED|Ran|Elapsed)" 
-    echo
+    if [[ "$FIRST" == false ]]; then
+        FIRST=true
+    else
+        echo ""
+    fi
+    OUTPUT="$($SUITE)"
+    FAILED_TESTS="$(echo "$OUTPUT" | grep "FAILED")"
+    SUMMARY_LINE="$(echo "$OUTPUT" | grep -P "Ran \d+ tests")"
+    COUNT_FAILED_TESTS="$(echo "$SUMMARY_LINE" | sed -e 's/\x1b\[[0-9;]*m//g' | grep -Po "\d+[^ ]*(?= failed)")"
+
+    ELAPSED_TIME="$(echo "$OUTPUT" | grep -Po "(?<=^Elapsed time: ).*(?=\.)")"
+
+    FAILED_SUMMARY=""
+    if [[ "$COUNT_FAILED_TESTS" -gt 0 ]]; then
+        FAILED_SUMMARY="- $COUNT_FAILED_TESTS failed tests"
+    fi
+
+    echo -e "$BOLD$WHITE$SUITE$RESET ($ELAPSED_TIME) $FAILED_SUMMARY"
+    echo "$FAILED_TESTS" | sed -e "s/^/    /" | sed -e "s/_/ /g"
+    echo "$SUMMARY_LINE" | sed -e "s/^/    /"
+
 done
