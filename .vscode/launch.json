@@ -11,15 +11,9 @@
             "mode": "auto",
             "program": "${workspaceFolder}",
             "args": [
-                "with",
-                "testdir.sops",
-                "--",
-                "cp",
-                "-r",
-                "{}/*",
-                "decrypted"
+                "keygen"
             ],
-            "cwd": "${workspaceFolder}/tests/tmp/path_with_directory/should_run_a_command_with_a_decrypted_directory.sh/",
+            "cwd": "${workspaceFolder}",
         }
     ]
 }
