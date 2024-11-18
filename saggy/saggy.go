@@ -3,7 +3,6 @@ package saggy
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,22 +15,6 @@ var (
 	keyName        			= getEnv("SAGGY_KEYNAME", strings.ToLower(getHostname()))
 	useBundledDependencies 	= getEnv("SAGGY_USE_BUNDLED_DEPENDENCIES", "false") == "true"
 )
-
-func getEnv(key, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return defaultValue
-}
-
-func getHostname() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to get hostname:", err)
-		os.Exit(1)
-	}
-	return hostname
-}
 
 func getAgePublicKeys() ([]string, error) {
 	if _, err := os.Stat(publicKeysFile); errors.Is(err, os.ErrNotExist) {

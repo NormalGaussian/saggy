@@ -2,9 +2,9 @@ package saggy
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+	"fmt"
 )
 
 func unsopsifyFilename(file string) string {
@@ -71,14 +71,6 @@ func createTempDir() (string, error) {
 	return tmpDir, nil
 }
 
-func runCommand(command, target string) error {
-	cmd := exec.Command("sh", "-c", strings.ReplaceAll(command, "{}", target))
-	if output, err := cmd.Output(); err != nil {
-		return NewExecutionError("Failed to run command", string(output), cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
-	}
-	return nil
-}
-
 func isDir(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -87,10 +79,18 @@ func isDir(path string) (bool, error) {
 	return info.IsDir(), nil
 }
 
-func isFile(path string) (bool, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false, NewSaggyErrorWithMeta("Failed to stat path", err, info)
+func getEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
 	}
-	return !info.IsDir(), nil
+	return defaultValue
+}
+
+func getHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to get hostname:", err)
+		os.Exit(1)
+	}
+	return hostname
 }

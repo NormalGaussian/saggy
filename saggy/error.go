@@ -3,6 +3,7 @@ package saggy
 import (
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"runtime"
 	"strings"
 )
@@ -109,5 +110,16 @@ func NewExecutionError(message string, output string, status int, command string
 		Args    []string
 		Dir     string
 	}{Status: status, Output: output, Command: command, Args: args, Dir: dir}
+	return NewSaggyError_skipFrames(message, nil, meta, 2)
+}
+
+func NewCommandError(message string, output string, cmd *exec.Cmd) error {
+	meta := struct {
+		Status  int
+		Output  string
+		Command string
+		Args    []string
+		Dir     string
+	}{Status: cmd.ProcessState.ExitCode() , Output: output, Command: cmd.Path, Args: cmd.Args, Dir: cmd.Dir}
 	return NewSaggyError_skipFrames(message, nil, meta, 2)
 }

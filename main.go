@@ -1,12 +1,18 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"saggy"
 	_ "embed"
+	"path/filepath"
+)
+
+var (
+	secretsDir     			= getEnv("SAGGY_SECRETS_DIR", "./secrets")
+	keyFile        			= getEnv("SAGGY_KEY_FILE", filepath.Join(secretsDir, "age.key"))
+	publicKeysFile 			= getEnv("SAGGY_PUBLIC_KEYS_FILE", filepath.Join(secretsDir, "public-age-keys.json"))
 )
 
 type CLIError struct {
@@ -66,7 +72,12 @@ func cli(argv []string) error {
 		}
 		return saggy.Decrypt(source, destination)
 	case "keygen":
-		return saggy.Keygen()
+		if len(args) > 0 {
+			if args[0] == "-" {
+				return saggy.KeygenToStdout("age")
+			}
+		}
+		return saggy.KeygenToFile(keyFile, publicKeysFile)
 	case "with":
 		if len(args) < 2 {
 			return NewCLIError(1, "Usage: with <target> [-w] -- <command>", nil, true)
@@ -107,14 +118,6 @@ func cli(argv []string) error {
 	}
 }
 
-func stringifyStruct(s interface{}) string {
-	bytes, err := json.Marshal(s)
-	if err != nil {
-		return fmt.Sprintf("%+v", s)
-	}
-	return string(bytes)
-}
-
 func main() {
 	// Invoke the CLI
 	if err := cli(os.Args); err != nil {
@@ -140,6 +143,14 @@ func main() {
 		os.Exit(3)
 	}
 	os.Exit(0)
+}
+
+func getEnv(key, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 func printUsage() {
