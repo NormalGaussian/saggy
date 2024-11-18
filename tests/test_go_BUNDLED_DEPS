@@ -1,0 +1,7 @@
+#!/bin/bash
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+go build -C "$SCRIPT_DIR/.." -o "$SCRIPT_DIR/saggy_go"
+
+TESTENV=GOCACHE,XDG_CACHE_HOME,HOME,SAGGY_USE_BUNDLED_DEPENDENCIES SAGGY_USE_BUNDLED_DEPENDENCIES=true SAGGY="$SCRIPT_DIR/saggy_go" $SCRIPT_DIR/run_test.sh "$@"

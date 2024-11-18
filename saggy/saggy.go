@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	secretsDir     = getEnv("SAGGY_SECRETS_DIR", "./secrets")
-	keyFile        = getEnv("SAGGY_KEY_FILE", filepath.Join(secretsDir, "age.key"))
-	publicKeysFile = getEnv("SAGGY_PUBLIC_KEYS_FILE", filepath.Join(secretsDir, "public-age-keys.json"))
-	keyName        = getEnv("SAGGY_KEYNAME", strings.ToLower(getHostname()))
+	secretsDir     			= getEnv("SAGGY_SECRETS_DIR", "./secrets")
+	keyFile        			= getEnv("SAGGY_KEY_FILE", filepath.Join(secretsDir, "age.key"))
+	publicKeysFile 			= getEnv("SAGGY_PUBLIC_KEYS_FILE", filepath.Join(secretsDir, "public-age-keys.json"))
+	keyName        			= getEnv("SAGGY_KEYNAME", strings.ToLower(getHostname()))
+	useBundledDependencies 	= getEnv("SAGGY_USE_BUNDLED_DEPENDENCIES", "false") == "true"
 )
 
 func getEnv(key, defaultValue string) string {

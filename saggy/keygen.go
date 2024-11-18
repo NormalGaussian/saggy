@@ -3,9 +3,13 @@ package saggy
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
+
+	"filippo.io/age"
 )
 
 func Keygen() error {
@@ -29,17 +33,37 @@ func Keygen() error {
 		return NewSaggyError("Failed to create directory", err)
 	}
 
-	cmd := exec.Command("age-keygen", "-o", keyFile)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return NewExecutionError("Failed to generate the key", string(output), cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
+	var publicKey string
+	if useBundledDependencies {
+		cmd := exec.Command("age-keygen", "-o", keyFile)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return NewExecutionError("Failed to generate the key", string(output), cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
+		}
+
+		publicKeyCmd := exec.Command("age-keygen", "-y", keyFile)
+		publicKey_tmp, err := publicKeyCmd.Output()
+		if err != nil {
+			return NewSaggyError("Failed to get public key", err)
+		}
+		publicKey = string(publicKey_tmp)
+	} else {
+		k, err := age.GenerateX25519Identity()
+		if err != nil {
+			return NewSaggyError("Failed to generate the key", err)
+		}
+		publicKey = k.Recipient().String()
+
+		f, err := os.Open(keyFile)
+		if err != nil {
+			return NewSaggyError("Failed to open key file for writing", err)
+		}
+
+		// Write the private key to the key file
+		fmt.Fprintf(f, "# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), publicKey, k)
+		
 	}
 
-	publicKeyCmd := exec.Command("age-keygen", "-y", keyFile)
-	publicKey, err := publicKeyCmd.Output()
-	if err != nil {
-		return NewSaggyError("Failed to get public key", err)
-	}
-
+	// Ensure the public keys file exists
 	if _, err := os.Stat(publicKeysFile); errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(filepath.Dir(publicKeysFile), 0755); err != nil {
 			return NewSaggyError("Failed to create directory", err)
@@ -58,7 +82,7 @@ func Keygen() error {
 	if err := json.Unmarshal(file, &publicKeys); err != nil {
 		return NewSaggyError("Failed to parse public keys file", err)
 	}
-	publicKeys[keyName] = string(publicKey)
+	publicKeys[keyName] = publicKey
 	updatedKeys, err := json.MarshalIndent(publicKeys, "", "  ")
 	if err != nil {
 		return NewSaggyError("Failed to serialize public keys", err)
