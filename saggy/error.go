@@ -123,3 +123,22 @@ func NewCommandError(message string, output string, cmd *exec.Cmd) error {
 	}{Status: cmd.ProcessState.ExitCode() , Output: output, Command: cmd.Path, Args: cmd.Args, Dir: cmd.Dir}
 	return NewSaggyError_skipFrames(message, nil, meta, 2)
 }
+
+type CLIError struct {
+	Code       int
+	Message    string
+	PrintUsage bool
+	Err        error
+}
+
+func (e *CLIError) Error() string {
+	if e.Err != nil {
+		return e.Message + ": " + e.Err.Error()
+	} else {
+		return e.Message
+	}
+}
+
+func NewCLIError(code int, message string, err error, printUsage bool) *CLIError {
+	return &CLIError{Code: code, Message: message, Err: err, PrintUsage: printUsage}
+}
