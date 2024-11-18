@@ -1,0 +1,10 @@
+#!/bin/bash
+
+BOLD=$(tput bold)
+WHITE=$(tput setaf 7)
+RESET=$(tput sgr0)
+for SUITE in $(ls -1 ./tests/test_*); do
+    echo -e "$BOLD${WHITE}Running $SUITE$RESET"
+    $SUITE | grep -P "(FAILED|Ran|Elapsed)" 
+    echo
+done
