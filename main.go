@@ -1,11 +1,11 @@
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
 	"saggy"
-	_ "embed"
 )
 
 func main() {

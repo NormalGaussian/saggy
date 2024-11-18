@@ -1,10 +1,10 @@
 package saggy
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"fmt"
 )
 
 func unsopsifyFilename(file string) string {

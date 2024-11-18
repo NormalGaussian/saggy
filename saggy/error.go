@@ -9,7 +9,7 @@ import (
 )
 
 type SilentError struct {
-	Err error
+	Err      error
 	ExitCode int
 }
 
@@ -120,7 +120,7 @@ func NewCommandError(message string, output string, cmd *exec.Cmd) error {
 		Command string
 		Args    []string
 		Dir     string
-	}{Status: cmd.ProcessState.ExitCode() , Output: output, Command: cmd.Path, Args: cmd.Args, Dir: cmd.Dir}
+	}{Status: cmd.ProcessState.ExitCode(), Output: output, Command: cmd.Path, Args: cmd.Args, Dir: cmd.Dir}
 	return NewSaggyError_skipFrames(message, nil, meta, 2)
 }
 

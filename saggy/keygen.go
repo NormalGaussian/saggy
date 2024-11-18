@@ -22,7 +22,7 @@ func Keygen_age_via_path() (key string, publicKey string, err error) {
 	} else {
 		keydata := string(output)
 		lines := strings.Split(keydata, "\n")
-		
+
 		// Extract the public key
 		publicKey := ""
 		for _, line := range lines {
@@ -70,12 +70,12 @@ func WritePublicKeyToFile(publicKeysFile string, keyName string, publicKey strin
 		return NewSaggyError("Failed to open public keys file", err)
 	} else {
 		defer f.Close()
-		
+
 		// Read existing keys
 		keys := make(map[string]string)
 		if fileInfo, err := f.Stat(); err != nil {
 			return NewSaggyError("Failed to get file info", err)
-		} else if fileInfo.Size() > 0 { 
+		} else if fileInfo.Size() > 0 {
 			if err := json.NewDecoder(f).Decode(&keys); err != nil {
 				return NewSaggyError("Failed to parse public keys file", err)
 			}
@@ -83,7 +83,7 @@ func WritePublicKeyToFile(publicKeysFile string, keyName string, publicKey strin
 
 		// Add the new key
 		keys[keyName] = publicKey
-		
+
 		// Write the keys back to the file
 		tempFile, err := os.CreateTemp(filepath.Dir(publicKeysFile), "public-keys-*.json")
 		if err != nil {
@@ -135,16 +135,16 @@ func KeygenToStdout(format string) error {
 	}
 
 	switch format {
-		case "age":
-			if _, err := fmt.Printf("# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), publicKey, key); err != nil {
-				return NewSaggyError("Failed to write key to stdout", err)
-			}
-		case "json":
-			if _, err := fmt.Printf("{\n  \"key\": \"%s\",\n  \"publicKey\": \"%s\"\n}\n", key, publicKey); err != nil {
-				return NewSaggyError("Failed to write key to stdout", err)
-			}
-		default:
-			return NewSaggyError("Invalid format", nil)
+	case "age":
+		if _, err := fmt.Printf("# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), publicKey, key); err != nil {
+			return NewSaggyError("Failed to write key to stdout", err)
+		}
+	case "json":
+		if _, err := fmt.Printf("{\n  \"key\": \"%s\",\n  \"publicKey\": \"%s\"\n}\n", key, publicKey); err != nil {
+			return NewSaggyError("Failed to write key to stdout", err)
+		}
+	default:
+		return NewSaggyError("Invalid format", nil)
 	}
 
 	return nil
