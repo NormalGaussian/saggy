@@ -6,17 +6,17 @@ import (
 	"path/filepath"
 )
 
-func Decrypt(keyFile, from, to string) error {
-	if is_dir, s_err := isDir(from); s_err != nil {
-		return s_err
+func Decrypt(keys *DecryptKey, from, to string) error {
+	if is_dir, err := isDir(from); err != nil {
+		return err
 	} else if is_dir {
-		return DecryptFolder(keyFile, from, to)
+		return DecryptFolder(keys, from, to)
 	} else {
-		return DecryptFile(keyFile, from, to)
+		return DecryptFile(keys, from, to)
 	}
 }
 
-func DecryptFile(keyFile, from, to string) error {
+func DecryptFile(keys *DecryptKey, from, to string) error {
 	from = filepath.Clean(from)
 	if to == "" {
 		to = unsopsifyFilename(from)
@@ -27,7 +27,7 @@ func DecryptFile(keyFile, from, to string) error {
 	}
 
 	cmd := exec.Command("sops", "--decrypt", from)
-	cmd.Env = []string{"SOPS_AGE_KEY_FILE=" + keyFile}
+	cmd.Env = []string{"SOPS_AGE_KEY_FILE=" + keys.privateKeyFilepath}
 	output, err := cmd.Output()
 
 	if err != nil {
@@ -41,7 +41,7 @@ func DecryptFile(keyFile, from, to string) error {
 	return nil
 }
 
-func DecryptFolder(keyFile, from, to string) error {
+func DecryptFolder(keys *DecryptKey, from, to string) error {
 	from = filepath.Clean(from)
 	if to == "" {
 		to = unsopsifyDirectory(from)
@@ -64,7 +64,7 @@ func DecryptFolder(keyFile, from, to string) error {
 				return err
 			}
 			cmd := exec.Command("sops", "--decrypt", path)
-			cmd.Env = []string{"SOPS_AGE_KEY_FILE=" + keyFile}
+			cmd.Env = []string{"SOPS_AGE_KEY_FILE=" + keys.privateKeyFilepath}
 			output, err := cmd.Output()
 			if err != nil {
 				return err

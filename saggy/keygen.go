@@ -13,12 +13,12 @@ import (
 	"filippo.io/age"
 )
 
-func Keygen_age_via_path() (key string, publicKey string, err error) {
+func Keygen_age_via_path(keys *GenerateKeys) error {
 	cmd := exec.Command("age-keygen")
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return "", "", NewCommandError("Failed to generate the key", string(output), cmd)
+		return NewCommandError("Failed to generate the key", string(output), cmd)
 	} else if cmd.ProcessState.ExitCode() != 0 {
-		return "", "", NewCommandError("Failed to generate the key", string(output), cmd)
+		return NewCommandError("Failed to generate the key", string(output), cmd)
 	} else {
 		keydata := string(output)
 		lines := strings.Split(keydata, "\n")
@@ -32,7 +32,7 @@ func Keygen_age_via_path() (key string, publicKey string, err error) {
 			}
 		}
 		if publicKey == "" {
-			return "", "", NewCommandError("Failed to find the public key in the output of age-keygen", keydata, cmd)
+			return NewCommandError("Failed to find the public key in the output of age-keygen", keydata, cmd)
 		}
 
 		// Extract the key
@@ -44,29 +44,32 @@ func Keygen_age_via_path() (key string, publicKey string, err error) {
 			}
 		}
 		if key == "" {
-			return "", "", NewCommandError("Failed to find the key in the output of age-keygen", keydata, cmd)
+			return NewCommandError("Failed to find the key in the output of age-keygen", keydata, cmd)
 		}
 
-		return key, publicKey, nil
-	}
-}
+		keys.privateKey = key
+		keys.publicKey = publicKey
 
-func WriteKeyToFile(key string, publicKey string, keyFile string) error {
-	if err := os.MkdirAll(filepath.Dir(keyFile), 0755); err != nil {
-		return NewSaggyError("Failed to create directory", err)
-	} else if f, err := os.OpenFile(keyFile, os.O_CREATE|os.O_WRONLY, 0600); err != nil {
-		return NewSaggyError("Failed to open key file for writing", err)
-	} else {
-		defer f.Close()
-		fmt.Fprintf(f, "# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), publicKey, key)
 		return nil
 	}
 }
 
-func WritePublicKeyToFile(publicKeysFile string, keyName string, publicKey string) error {
-	if err := os.MkdirAll(filepath.Dir(publicKeysFile), 0755); err != nil {
+func WriteKeyToFileNames(keys *GenerateKeys, keyFileNames *KeyFileNames) error {
+	if err := os.MkdirAll(filepath.Dir(keyFileNames.privateKeyFilepath), 0755); err != nil {
 		return NewSaggyError("Failed to create directory", err)
-	} else if f, err := os.OpenFile(publicKeysFile, os.O_CREATE|os.O_RDWR, 0644); err != nil {
+	} else if f, err := os.OpenFile(keyFileNames.privateKeyFilepath, os.O_CREATE|os.O_WRONLY, 0600); err != nil {
+		return NewSaggyError("Failed to open key file for writing", err)
+	} else {
+		defer f.Close()
+		fmt.Fprintf(f, "# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), keys.publicKey, keys.privateKey)
+		return nil
+	}
+}
+
+func WritePublicKeyToFileNames(generatedKeys *GenerateKeys, keyFileNames *KeyFileNames, keyName string) error {
+	if err := os.MkdirAll(filepath.Dir(keyFileNames.publicKeysFilepath), 0755); err != nil {
+		return NewSaggyError("Failed to create directory", err)
+	} else if f, err := os.OpenFile(keyFileNames.publicKeysFilepath, os.O_CREATE|os.O_RDWR, 0644); err != nil {
 		return NewSaggyError("Failed to open public keys file", err)
 	} else {
 		defer f.Close()
@@ -82,10 +85,10 @@ func WritePublicKeyToFile(publicKeysFile string, keyName string, publicKey strin
 		}
 
 		// Add the new key
-		keys[keyName] = publicKey
+		keys[keyName] = generatedKeys.publicKey
 
 		// Write the keys back to the file
-		tempFile, err := os.CreateTemp(filepath.Dir(publicKeysFile), "public-keys-*.json")
+		tempFile, err := os.CreateTemp(filepath.Dir(keyFileNames.publicKeysFilepath), "public-keys-*.json")
 		if err != nil {
 			return NewSaggyError("Failed to create temporary file", err)
 		}
@@ -99,7 +102,7 @@ func WritePublicKeyToFile(publicKeysFile string, keyName string, publicKey strin
 			return NewSaggyError("Failed to close temporary file", err)
 		}
 
-		if err := os.Rename(tempFile.Name(), publicKeysFile); err != nil {
+		if err := os.Rename(tempFile.Name(), keyFileNames.publicKeysFilepath); err != nil {
 			return NewSaggyError("Failed to rename temporary file to public keys file", err)
 		}
 
@@ -107,40 +110,42 @@ func WritePublicKeyToFile(publicKeysFile string, keyName string, publicKey strin
 	}
 }
 
-func Keygen_age_via_import() (key string, publicKey string, err error) {
+func Keygen_age_via_import(keys *GenerateKeys) (err error) {
 	// Generate the key
 	k, err := age.GenerateX25519Identity()
 	if err != nil {
-		return "", "", NewSaggyError("Failed to generate the key", err)
+		return NewSaggyError("Failed to generate the key", err)
 	}
 
-	// Extract the public key
-	publicKey = k.Recipient().String()
+	keys.publicKey = k.Recipient().String()
+	keys.privateKey = k.String()
 
-	return k.String(), publicKey, nil
+	return nil
 }
 
-func Keygen() (key string, publicKey string, err error) {
+func Keygen(keys *GenerateKeys) (err error) {
 	if useBundledDependencies {
-		return Keygen_age_via_import()
+		return Keygen_age_via_import(keys)
 	} else {
-		return Keygen_age_via_path()
+		return Keygen_age_via_path(keys)
 	}
 }
 
 func KeygenToStdout(format string) error {
-	key, publicKey, err := Keygen()
+	// Generate the keys
+	keys := &GenerateKeys{}
+	err := Keygen(keys)
 	if err != nil {
 		return err
 	}
 
 	switch format {
 	case "age":
-		if _, err := fmt.Printf("# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), publicKey, key); err != nil {
+		if _, err := fmt.Printf("# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), keys.publicKey, keys.privateKey); err != nil {
 			return NewSaggyError("Failed to write key to stdout", err)
 		}
 	case "json":
-		if _, err := fmt.Printf("{\n  \"key\": \"%s\",\n  \"publicKey\": \"%s\"\n}\n", key, publicKey); err != nil {
+		if _, err := fmt.Printf("{\n  \"key\": \"%s\",\n  \"publicKey\": \"%s\"\n}\n", keys.privateKey, keys.publicKey); err != nil {
 			return NewSaggyError("Failed to write key to stdout", err)
 		}
 	default:
@@ -150,33 +155,35 @@ func KeygenToStdout(format string) error {
 	return nil
 }
 
-func KeygenToFile(keyFile string, publicKeysFile string, keyName string) error {
-	if stat, err := os.Stat(keyFile); err == nil && stat != nil {
-		return NewSaggyError("Key already exists - to generate a new key, delete the existing key\n"+
-			"1. Decrypt the folders\n"+
-			"  saggy decrypt <target> <destination>\n"+
-			"2. Delete the key\n"+
-			"  rm \"./secrets/age.key\"\n"+
-			"2. Delete it from the public keys file\n"+
-			"  vi \"./secrets/public-age-keys.json\"\n"+
-			"3. Run this command again\n"+
-			"  saggy keygen\n"+
-			"4. Encrypt the folders\n"+
-			"  saggy encrypt <target> <destination>\n", err)
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+func KeygenToFile(keyFileNames *KeyFileNames, keyName string) error {
+	// Guards
+	if keyFileNames.privateKeyFilepath == "" {
+		return NewSaggyError("Private key file path is not set", nil)
+	} else if keyFileNames.publicKeysFilepath == "" {
+		return NewSaggyError("Public key file path is not set", nil)
+	} else if keyName == "" {
+		return NewSaggyError("Key name is not set", nil)
+	}
+
+	// Verify the keyfile does not already exist
+	if stat, err := os.Stat(keyFileNames.privateKeyFilepath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return NewSaggyError("Unable to determine if the key file already exists", err)
+	} else if stat != nil {
+		// file (or dir) exists
+		return NewSaggyError("Key already exists - to generate a new key, delete the existing key\n"+ROTATE_KEY_GUIDE, err)
 	}
 
-	key, publicKey, err := Keygen()
-	if err != nil {
+	// Generate keys
+	keys := &GenerateKeys{}
+	if err := Keygen(keys); err != nil {
 		return err
 	}
 
-	if err := WriteKeyToFile(key, publicKey, keyFile); err != nil {
+	// Write the keys to the files
+	if err := WriteKeyToFileNames(keys, keyFileNames); err != nil {
 		return err
 	}
-
-	if err := WritePublicKeyToFile(publicKeysFile, keyName, publicKey); err != nil {
+	if err := WritePublicKeyToFileNames(keys, keyFileNames, keyName); err != nil {
 		return err
 	}
 

@@ -14,7 +14,7 @@ var (
 func CLI(argv []string) error {
 	var (
 		secretsDir     = getEnv("SAGGY_SECRETS_DIR", "./secrets")
-		keyFile        = getEnv("SAGGY_KEY_FILE", filepath.Join(secretsDir, "age.key"))
+		privateKeyFile = getEnv("SAGGY_KEY_FILE", filepath.Join(secretsDir, "age.key"))
 		publicKeysFile = getEnv("SAGGY_PUBLIC_KEYS_FILE", filepath.Join(secretsDir, "public-age-keys.json"))
 		keyName        = getEnv("SAGGY_KEYNAME", strings.ToLower(getHostname()))
 	)
@@ -29,6 +29,7 @@ func CLI(argv []string) error {
 
 	switch cmd {
 	case "encrypt":
+
 		if len(args) < 1 {
 			return NewCLIError(1, "Nothing provided to encrypt", nil, true)
 		}
@@ -37,7 +38,14 @@ func CLI(argv []string) error {
 		if len(args) > 1 {
 			destination = args[1]
 		}
-		return Encrypt(publicKeysFile, source, destination)
+
+		keys, err := EncryptKeysFromFiles(publicKeysFile)
+		if err != nil {
+			return err
+		}
+
+		return Encrypt(keys, source, destination)
+
 	case "decrypt":
 		if len(args) < 1 {
 			return NewCLIError(1, "Nothing provided to decrypt", nil, true)
@@ -47,14 +55,26 @@ func CLI(argv []string) error {
 		if len(args) > 1 {
 			destination = args[1]
 		}
-		return Decrypt(keyFile, source, destination)
+
+		keys, err := DecryptKeysFromFiles(privateKeyFile)
+		if err != nil {
+			return err
+		}
+
+		return Decrypt(keys, source, destination)
+
 	case "keygen":
 		if len(args) > 0 {
 			if args[0] == "-" {
 				return KeygenToStdout("age")
 			}
 		}
-		return KeygenToFile(keyFile, publicKeysFile, keyName)
+		keyFileNames := &KeyFileNames{
+			privateKeyFilepath: privateKeyFile,
+			publicKeysFilepath: publicKeysFile,
+		}
+		return KeygenToFile(keyFileNames, keyName)
+
 	case "with":
 		if len(args) < 2 {
 			return NewCLIError(1, "Usage: with <target> [-w] -- <command>", nil, true)
@@ -67,7 +87,14 @@ func CLI(argv []string) error {
 			commandIndex = 2
 		}
 		command := args[commandIndex+1:]
-		return With(keyFile, publicKeysFile, target, command, mode)
+
+		keys, err := KeysFromFiles(publicKeysFile, privateKeyFile)
+		if err != nil {
+			return err
+		}
+
+		return With(keys, target, command, mode)
+
 	case "license":
 		if len(args) >= 1 && args[0] == "--full" {
 			fmt.Println(LICENSE_TEXT_FULL)
@@ -75,6 +102,7 @@ func CLI(argv []string) error {
 			fmt.Println(LICENSE_TEXT)
 		}
 		return nil
+
 	default:
 		return NewCLIError(1, "Unknown command: "+cmd, nil, true)
 	}

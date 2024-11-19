@@ -6,24 +6,28 @@ import (
 	"strings"
 )
 
-func With(keyFile string, publicKeysFile string, target string, command []string, mode string) error {
+func With(keys *Keys, target string, command []string, mode string) error {
+	if mode == "write" && keys.publicKeys == nil {
+		return NewSaggyError("Cannot write - no public keys provided", nil)
+	}
+
 	if is_dir, s_err := isDir(target); s_err != nil {
 		return s_err
 	} else if is_dir {
-		return withFolder(keyFile, publicKeysFile, target, command, mode)
+		return withFolder(keys, target, command, mode)
 	} else {
-		return withFile(keyFile, publicKeysFile, target, command, mode)
+		return withFile(keys, target, command, mode)
 	}
 }
 
-func withFile(keyFile string, publicKeysFile string, file string, command []string, mode string) error {
+func withFile(keys *Keys, file string, command []string, mode string) error {
 	tmpFile, s_err := createTempFile()
 	if s_err != nil {
 		return NewSaggyError("Failed to create temporary file", s_err)
 	}
 	defer os.Remove(tmpFile)
 
-	if s_err := DecryptFile(keyFile, file, tmpFile); s_err != nil {
+	if s_err := DecryptFile(keys.DecryptKey, file, tmpFile); s_err != nil {
 		return NewSaggyError("Failed to decrypt file", s_err)
 	}
 
@@ -42,19 +46,19 @@ func withFile(keyFile string, publicKeysFile string, file string, command []stri
 	}
 
 	if mode == "write" {
-		return EncryptFile(publicKeysFile, tmpFile, file)
+		return EncryptFile(keys.EncryptKeys, tmpFile, file)
 	}
 	return nil
 }
 
-func withFolder(keyFile string, publicKeysFile string, folder string, command []string, mode string) error {
+func withFolder(keys *Keys, folder string, command []string, mode string) error {
 	tmpFolder, s_err := createTempDir()
 	if s_err != nil {
 		return NewSaggyError("Failed to create temporary directory", s_err)
 	}
 	defer os.RemoveAll(tmpFolder)
 
-	if s_err := DecryptFolder(keyFile, folder, tmpFolder); s_err != nil {
+	if s_err := DecryptFolder(keys.DecryptKey, folder, tmpFolder); s_err != nil {
 		return NewSaggyError("Failed to decrypt folder", s_err)
 	}
 
@@ -72,7 +76,7 @@ func withFolder(keyFile string, publicKeysFile string, folder string, command []
 	}
 
 	if mode == "write" {
-		return EncryptFolder(publicKeysFile, tmpFolder, folder)
+		return EncryptFolder(keys.EncryptKeys, tmpFolder, folder)
 	}
 	return nil
 }

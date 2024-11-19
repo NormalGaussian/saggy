@@ -12,3 +12,6 @@ var LICENSE_TEXT_FULL string
 
 //go:embed text/usage.txt
 var USAGE_TEXT string
+
+//go:embed text/rotate-key-guide.txt
+var ROTATE_KEY_GUIDE string

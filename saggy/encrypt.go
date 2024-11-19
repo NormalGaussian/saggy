@@ -8,27 +8,23 @@ import (
 	"path/filepath"
 )
 
-func Encrypt(publicKeysFile, from, to string) error {
-	if is_dir, s_err := isDir(from); s_err != nil {
-		return s_err
+func Encrypt(keys *EncryptKeys, from, to string) error {
+	if is_dir, err := isDir(from); err != nil {
+		return err
 	} else if is_dir {
-		return EncryptFolder(publicKeysFile, from, to)
+		return EncryptFolder(keys, from, to)
 	} else {
-		return EncryptFile(publicKeysFile, from, to)
+		return EncryptFile(keys, from, to)
 	}
 }
 
-func EncryptFile(publicKeysFile, from, to string) error {
+func EncryptFile(keys *EncryptKeys, from, to string) error {
 	if to == "" {
 		to = getSopsifiedFilename(from)
 	}
 
-	keys, s_err := getAgePublicKeys(publicKeysFile)
-	if s_err != nil {
-		return s_err
-	}
 	args := []string{"--encrypt"}
-	for _, key := range keys {
+	for _, key := range *keys.publicKeys {
 		args = append(args, "--age", key)
 	}
 	args = append(args, from, to)
@@ -48,15 +44,10 @@ func EncryptFile(publicKeysFile, from, to string) error {
 	return nil
 }
 
-func EncryptFolder(publicKeysFile, from, to string) error {
+func EncryptFolder(keys *EncryptKeys, from, to string) error {
 	from = filepath.Clean(from)
 	if to == "" {
 		to = getSopsifiedDirname(from)
-	}
-
-	keys, s_err := getAgePublicKeys(publicKeysFile)
-	if s_err != nil {
-		return s_err
 	}
 
 	err := filepath.WalkDir(from, func(path string, info os.DirEntry, err error) error {
@@ -75,7 +66,7 @@ func EncryptFolder(publicKeysFile, from, to string) error {
 			}
 
 			args := []string{"--encrypt"}
-			for _, key := range keys {
+			for _, key := range *keys.publicKeys {
 				args = append(args, "--age", key)
 			}
 			args = append(args, path)
@@ -100,7 +91,7 @@ func EncryptFolder(publicKeysFile, from, to string) error {
 	return nil
 }
 
-func getAgePublicKeys(publicKeysFile string) ([]string, error) {
+func ReadAgePublicKeys(publicKeysFile string) ([]string, error) {
 	if _, err := os.Stat(publicKeysFile); errors.Is(err, os.ErrNotExist) {
 		return []string{}, nil
 	}

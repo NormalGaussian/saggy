@@ -1,0 +1,10 @@
+1. Decrypt the folders
+    saggy decrypt <target> <destination>
+2. Delete the key
+    rm "./secrets/age.key"
+2. Delete it from the public keys file
+    vi "./secrets/public-age-keys.json"
+3. Run this command again
+    saggy keygen
+4. Encrypt the folders
+    saggy encrypt <target> <destination>
