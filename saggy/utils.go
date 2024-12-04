@@ -2,10 +2,59 @@ package saggy
 
 import (
 	"fmt"
+	"io/fs"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
+	"errors"
 )
+
+// TODO: credit properly; taken and modified from go source
+func safeCreateRelativeTempFile(forFilename string, perms fs.FileMode) (*os.File, error) {
+	dir := filepath.Dir(forFilename)
+	basename := filepath.Base(forFilename)
+
+	var prefix string
+	if strings.HasPrefix(basename, ".") {
+		prefix = basename
+	} else {
+		prefix = "." + basename
+	}
+	suffix := ".tmp"
+
+	try := 0
+	for {
+		tmpfilename := filepath.Join(dir, prefix + randomDecimalString() + suffix)
+		f, err := os.OpenFile(tmpfilename, os.O_RDWR|os.O_CREATE|os.O_EXCL, perms)
+		if errors.Is(err, fs.ErrExist) {
+			if try++; try < 10000 {
+				continue
+			}
+			return nil, err
+		}
+		return f, err
+	}
+}
+
+// TODO: credit properly; taken from go source
+func randomDecimalString() string {
+	val := uint(rand.Uint32())
+	if val == 0 { // avoid string allocation
+		return "0"
+	}
+	var buf [20]byte // big enough for 64bit value base 10
+	i := len(buf) - 1
+	for val >= 10 {
+		q := val / 10
+		buf[i] = byte('0' + val - q*10)
+		i--
+		val = q
+	}
+	// val < 10
+	buf[i] = byte('0' + val)
+	return string(buf[i:])
+}
 
 func unsopsifyFilename(file string) string {
 	dirname := filepath.Dir(file)

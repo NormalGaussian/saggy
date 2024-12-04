@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -55,62 +53,6 @@ func Keygen_age_via_path(keys *GenerateKeys) error {
 	}
 }
 
-func WriteKeyToFileNames(keys *GenerateKeys, keyFileNames *KeyFileNames) error {
-	if err := os.MkdirAll(filepath.Dir(keyFileNames.privateKeyFilepath), 0755); err != nil {
-		return NewSaggyError("Failed to create directory", err)
-	} else if f, err := os.OpenFile(keyFileNames.privateKeyFilepath, os.O_CREATE|os.O_WRONLY, 0600); err != nil {
-		return NewSaggyError("Failed to open key file for writing", err)
-	} else {
-		defer f.Close()
-		fmt.Fprintf(f, "# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), keys.publicKey, keys.privateKey)
-		return nil
-	}
-}
-
-func WritePublicKeyToFileNames(generatedKeys *GenerateKeys, keyFileNames *KeyFileNames, keyName string) error {
-	if err := os.MkdirAll(filepath.Dir(keyFileNames.publicKeysFilepath), 0755); err != nil {
-		return NewSaggyError("Failed to create directory", err)
-	} else if f, err := os.OpenFile(keyFileNames.publicKeysFilepath, os.O_CREATE|os.O_RDWR, 0644); err != nil {
-		return NewSaggyError("Failed to open public keys file", err)
-	} else {
-		defer f.Close()
-
-		// Read existing keys
-		keys := make(map[string]string)
-		if fileInfo, err := f.Stat(); err != nil {
-			return NewSaggyError("Failed to get file info", err)
-		} else if fileInfo.Size() > 0 {
-			if err := json.NewDecoder(f).Decode(&keys); err != nil {
-				return NewSaggyError("Failed to parse public keys file", err)
-			}
-		}
-
-		// Add the new key
-		keys[keyName] = generatedKeys.publicKey
-
-		// Write the keys back to the file
-		tempFile, err := os.CreateTemp(filepath.Dir(keyFileNames.publicKeysFilepath), "public-keys-*.json")
-		if err != nil {
-			return NewSaggyError("Failed to create temporary file", err)
-		}
-		defer os.Remove(tempFile.Name())
-
-		if err := json.NewEncoder(tempFile).Encode(keys); err != nil {
-			return NewSaggyError("Failed to encode public keys to temporary file", err)
-		}
-
-		if err := tempFile.Close(); err != nil {
-			return NewSaggyError("Failed to close temporary file", err)
-		}
-
-		if err := os.Rename(tempFile.Name(), keyFileNames.publicKeysFilepath); err != nil {
-			return NewSaggyError("Failed to rename temporary file to public keys file", err)
-		}
-
-		return nil
-	}
-}
-
 func Keygen_age_via_import(keys *GenerateKeys) (err error) {
 	// Generate the key
 	k, err := age.GenerateX25519Identity()
@@ -136,7 +78,6 @@ type KeyGenParameters struct {
 	keyName string
 	
 	privateKeyWriter io.Writer
-	privateKeyFile *os.File
 	privateKeyFilepath string
 
 	// Either age or json
@@ -148,9 +89,6 @@ type KeyGenParameters struct {
 	// Optional; if the writer is provided and the reader is not provided the existing keys will not be preserved
 	// Optional; if neither the writer nor the reader are provided the reader will be created from the publicKeysFile or publicKeysFilepath
 	publicKeysReader io.Reader
-
-	// Optional; if both the Writer and the format are provided
-	publicKeysFile *os.File
 
 	// Optional; if the public keys filename is provided
 	publicKeysFilepath string
@@ -167,69 +105,6 @@ type KeyGenParametersIO struct {
 	publicKeysFormat string
 	readPublicKeys func () ([]byte, error)
 	writePublicKeys func ([]byte) error
-}
-
-func safeReplaceFile(file os.File, data []byte) error {
-	tmpname := file.Name() + ".*.tmp"
-	tmpfile, err := os.Create(tmpname)
-	if err != nil {
-		return NewSaggyError("Failed to create temporary file", err)
-	}
-	defer os.Remove(tmpname)
-
-	if _, err := tmpfile.Write(data); err != nil {
-		return NewSaggyError("Failed to write to temporary file", err)
-	}
-	if err := tmpfile.Close(); err != nil {
-		return NewSaggyError("Failed to close temporary file", err)
-	}
-
-	if err := os.Rename(tmpname, file.Name()); err != nil {
-		return NewSaggyError("Failed to rename temporary file", err)
-	}
-
-	return nil
-}
-
-func safeOpenFile(filename string, flags int, perm fs.FileMode) (*os.File, error) {
-	dirname := filepath.Dir(filename)
-	if err := os.MkdirAll(dirname, 0755); err != nil {
-		return nil, NewSaggyError("Failed to create parent directories", err)
-	}
-	return os.OpenFile(filename, flags | os.O_CREATE, perm)
-}
-
-func safeReplaceFilename(filename string, data []byte) error {
-	directory := filepath.Dir(filename)
-	basename := filepath.Base(filename)
-	tmpname := filepath.Join(directory, "." + basename + ".*.tmp")
-
-	// Ensure the directory exists
-	if err := os.MkdirAll(directory, 0755); err != nil {
-		return NewSaggyError("Failed to create parent directories directory", err)
-	}
-
-	// Create the temporary file
-	tempFile, err := os.CreateTemp(directory, tmpname)
-	if err != nil {
-		return NewSaggyError("Failed to create temporary file", err)
-	}
-	defer os.Remove(tempFile.Name())
-
-	// Write the data to the temporary file
-	if _, err := tempFile.Write(data); err != nil {
-		return NewSaggyError("Failed to write to temporary file", err)
-	}
-	if err := tempFile.Close(); err != nil {
-		return NewSaggyError("Failed to close temporary file", err)
-	}
-
-	// Rename the temporary file to the target file
-	if err := os.Rename(tempFile.Name(), filename); err != nil {
-		return NewSaggyError("Failed to rename temporary file", err)
-	}
-
-	return nil
 }
 
 func KeyGen_parameterised(parameters *KeyGenParameters) error {
@@ -292,23 +167,9 @@ func KeyGen_parameterised(parameters *KeyGenParameters) error {
 			_, err := parameters.privateKeyWriter.Write(data)
 			return err
 		}
-	} else {
-
-		privateKeyFile := parameters.privateKeyFile
-		if privateKeyFile == nil && parameters.privateKeyFilepath != "" {
-			if f, err := safeOpenFile(parameters.privateKeyFilepath, os.O_CREATE|os.O_WRONLY, 0600); err != nil {
-				return NewSaggyError("Failed to open private key file", err)
-			} else {
-				defer f.Close()
-				privateKeyFile = f
-			}
-		}
-
-		if privateKeyFile != nil {
-			writePrivateKey = func(data []byte) error {
-				return safeReplaceFile(*privateKeyFile, data)
-			}
-		}
+	} else if parameters.privateKeyFilepath != "" {
+		f := NewSafeWholeFile(parameters.privateKeyFilepath, os.O_CREATE|os.O_RDWR|os.O_EXCL, 0600)
+		writePrivateKey = f.Write
 	}
 
 	var writePublicKeys func (data []byte) error
@@ -326,26 +187,10 @@ func KeyGen_parameterised(parameters *KeyGenParameters) error {
 		}
 	}
 	if writePublicKeys == nil && readPublicKeys == nil {
-		publicKeysFile := parameters.publicKeysFile
-		if publicKeysFile == nil && parameters.publicKeysFilepath != "" {
-			if f, err := safeOpenFile(parameters.publicKeysFilepath, os.O_CREATE|os.O_RDWR, 0644); err != nil {
-				return NewSaggyError("Failed to open public keys file", err)
-			} else {
-				defer f.Close()
-				publicKeysFile = f
-			}
-		}
-
-		if publicKeysFile != nil {
-			writePublicKeys = func(data []byte) error {
-				return safeReplaceFile(*publicKeysFile, data)
-			}
-			readPublicKeys = func() ([]byte, error) {
-				if _, err := publicKeysFile.Seek(0, 0); err != nil {
-					return nil, err
-				}
-				return io.ReadAll(publicKeysFile)
-			}
+		if parameters.publicKeysFilepath != "" {
+			f := NewSafeWholeFile(parameters.publicKeysFilepath, os.O_CREATE|os.O_RDWR, 0644)
+			writePublicKeys = f.Write
+			readPublicKeys = f.Read
 		}
 	}
 	
