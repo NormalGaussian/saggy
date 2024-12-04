@@ -37,40 +37,45 @@ type Keys struct {
 	*GenerateKeys
 }
 
-func ReadPublicKeys(filepath string) (*map[string]string, error) {
+func (encryptKeys *EncryptKeys) Read(filepath string) error {
 	keys := make(map[string]string)
 
 	// Open the file
+	var filedata_string string
 	filedata_bytes, err := os.ReadFile(filepath)
 	if err != nil && os.IsNotExist(err) {
-		// No such file, return an empty map as there are no keys
-		return &keys, nil
+		// No such file, therefore no data to read
+		filedata_string = ""
 	} else if err != nil {
 		// The file might exist, but for some other reason we can't open it
-		return nil, NewSaggyError("Failed to open public keys file", err)
+		return NewSaggyError("Failed to open public keys file", err)
+	} else {
+		filedata_string = string(filedata_bytes)
 	}
 
 	// If the file is empty, there are no keys to read
-	if len(filedata_bytes) == 0 {
-		return &keys, nil
+	if len(filedata_string) > 0 {
+		// Read the keys from the file
+		if err := json.NewDecoder(strings.NewReader(filedata_string)).Decode(&keys); err != nil {
+			return NewSaggyError("Failed to parse public keys file", err)
+		}
 	}
 
-	// Read the keys from the file
-	if err := json.NewDecoder(strings.NewReader(string(filedata_bytes))).Decode(&keys); err != nil {
-		return nil, NewSaggyError("Failed to parse public keys file", err)
-	}
-	return &keys, nil
+	encryptKeys.publicKeys = &keys
+	encryptKeys.publicKeysFilepath = filepath
+
+	return nil
 }
 
-func ReadPrivateKey(file string) (string, error) {
+func (decryptKey *DecryptKey) Read(filepath string) error {
 	// Open the file
-	filedata_bytes, err := os.ReadFile(file)
+	filedata_bytes, err := os.ReadFile(filepath)
 	if err != nil && os.IsNotExist(err) {
 		// Forward the error if the file doesn't exist so the caller can handle it
-		return "", err
+		return err
 	} else if err != nil {
 		// The file might exist, but for some other reason we can't open it
-		return "", NewSaggyError("Failed to open private key file", err)
+		return NewSaggyError("Failed to open private key file", err)
 	}
 
 	// Read the key
@@ -83,39 +88,37 @@ func ReadPrivateKey(file string) (string, error) {
 		}
 	}
 	if privateKey == "" {
-		return "", NewSaggyError("Failed to find the private key in the file", nil)
+		return NewSaggyError("Failed to find the private key in the file", nil)
 	}
-	return privateKey, nil
+
+	decryptKey.privateKeyFilepath = filepath
+	decryptKey.privateKey = privateKey
+
+	return nil
 }
 
-func DecryptKeysFromFiles(privateKeyFilepath string) (*DecryptKey, error) {
-	privateKey, err := ReadPrivateKey(privateKeyFilepath)
-	if err != nil {
+func DecryptKeysFromFile(privateKeyFilepath string) (*DecryptKey, error) {
+	decryptKey := &DecryptKey{}
+	if err := decryptKey.Read(privateKeyFilepath); err != nil {
 		return nil, err
 	}
-	return &DecryptKey{
-		privateKeyFilepath: privateKeyFilepath,
-		privateKey:         privateKey,
-	}, nil
+	return decryptKey, nil
 }
 
-func EncryptKeysFromFiles(publicKeysFilepath string) (*EncryptKeys, error) {
-	publicKeys, err := ReadPublicKeys(publicKeysFilepath)
-	if err != nil {
+func EncryptKeysFromFile(publicKeysFilepath string) (*EncryptKeys, error) {
+	encryptKeys := &EncryptKeys{}
+	if err := encryptKeys.Read(publicKeysFilepath); err != nil {
 		return nil, err
 	}
-	return &EncryptKeys{
-		publicKeys:         publicKeys,
-		publicKeysFilepath: publicKeysFilepath,
-	}, nil
+	return encryptKeys, nil
 }
 
 func KeysFromFiles(publicKeysFilepath, privateKeyFilepath string) (*Keys, error) {
-	encryptKeys, err := EncryptKeysFromFiles(publicKeysFilepath)
+	encryptKeys, err := EncryptKeysFromFile(publicKeysFilepath)
 	if err != nil {
 		return nil, err
 	}
-	decryptKey, err := DecryptKeysFromFiles(privateKeyFilepath)
+	decryptKey, err := DecryptKeysFromFile(privateKeyFilepath)
 	if err != nil {
 		return nil, err
 	}
@@ -123,4 +126,29 @@ func KeysFromFiles(publicKeysFilepath, privateKeyFilepath string) (*Keys, error)
 		EncryptKeys: encryptKeys,
 		DecryptKey:  decryptKey,
 	}, nil
+}
+
+func (keyFiles *KeyFiles) Open(keyFileNames *KeyFileNames) error {
+	privateKeyFile, err := os.Open(keyFileNames.privateKeyFilepath)
+	if err != nil {
+		return NewSaggyError("Failed to open private key file", err)
+	}
+
+	publicKeysFile, err := os.Open(keyFileNames.publicKeysFilepath)
+	if err != nil {
+		return NewSaggyError("Failed to open public keys file", err)
+	}
+
+	keyFiles.privateKeyFile = privateKeyFile
+	keyFiles.publicKeysFile = publicKeysFile
+
+	return nil
+}
+func (keyFiles *KeyFiles) Close() {
+	if keyFiles.privateKeyFile != nil {
+		keyFiles.privateKeyFile.Close()
+	}
+	if keyFiles.publicKeysFile != nil {
+		keyFiles.publicKeysFile.Close()
+	}
 }

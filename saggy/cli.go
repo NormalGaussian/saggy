@@ -39,12 +39,11 @@ func CLI(argv []string) error {
 			destination = args[1]
 		}
 
-		keys, err := EncryptKeysFromFiles(publicKeysFile)
-		if err != nil {
+		if encryptKeys, err := EncryptKeysFromFile(publicKeysFile); err != nil {
 			return err
+		} else {
+			return Encrypt(encryptKeys, source, destination)
 		}
-
-		return Encrypt(keys, source, destination)
 
 	case "decrypt":
 		if len(args) < 1 {
@@ -56,24 +55,39 @@ func CLI(argv []string) error {
 			destination = args[1]
 		}
 
-		keys, err := DecryptKeysFromFiles(privateKeyFile)
-		if err != nil {
+		if decryptKey, err := DecryptKeysFromFile(privateKeyFile); err != nil {
 			return err
+		} else {
+			return Decrypt(decryptKey, source, destination)
 		}
-
-		return Decrypt(keys, source, destination)
 
 	case "keygen":
 		if len(args) > 0 {
 			if args[0] == "-" {
-				return KeygenToStdout("age")
+				return KeyGen_parameterised(&KeyGenParameters{
+					privateKeyWriter: os.Stdout,
+					privateKeyFormat: "age",
+				})
 			}
 		}
-		keyFileNames := &KeyFileNames{
-			privateKeyFilepath: privateKeyFile,
-			publicKeysFilepath: publicKeysFile,
+
+		privateKeyFileAbs, err := filepath.Abs(privateKeyFile)
+		if err != nil {
+			return err
 		}
-		return KeygenToFile(keyFileNames, keyName)
+		
+		publicKeysFileAbs, err := filepath.Abs(publicKeysFile)
+		if err != nil {
+			return err
+		}
+
+		return KeyGen_parameterised(&KeyGenParameters{
+			privateKeyFilepath: privateKeyFileAbs,
+			publicKeysFilepath: publicKeysFileAbs,
+			keyName: keyName,
+			privateKeyFormat: "age",
+			publicKeysFormat: "json",
+		})
 
 	case "with":
 		if len(args) < 2 {
