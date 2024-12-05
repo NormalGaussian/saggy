@@ -91,9 +91,10 @@ run_test() {
     cd "$CHILD_TEST_DIR"
 
     if env -i "${CHILD_ENV[@]}" TMPDIR="$TEST_TEMP_DIR" bash -xeuo pipefail "$SCRIPT_DIR/$test_script" > "$RESULTS_DIR/$test_id.log" 2>&1; then
-        touch "$RESULTS_DIR/$test_id.success"
+        mv "$RESULTS_DIR/$test_id.log" "$RESULTS_DIR/$test_id.success"
     else
-        echo "$?" > "$RESULTS_DIR/$test_id.failure"
+        mv "$RESULTS_DIR/$test_id.log" "$RESULTS_DIR/$test_id.failure"
+        echo "$?" >> "$RESULTS_DIR/$test_id.failure"
         return
     fi
     rm -rf "$CHILD_TEST_DIR"
@@ -128,8 +129,8 @@ for FILE in "$RESULTS_DIR"/*; do
     if [[ "$FILE" == *.failure ]]; then
         TEST_ID=$(basename "$FILE" .failure)
         FAILURE_COUNT=$((FAILURE_COUNT+1))
-        EXIT_CODE=$(cat "$RESULTS_DIR/$TEST_ID.failure")
-        OUTPUT=$(tail -n 5 "$RESULTS_DIR/$TEST_ID.log")
+        EXIT_CODE=$(tail -n 1 "$RESULTS_DIR/$TEST_ID.failure")
+        OUTPUT=$(tail -n 6 "$RESULTS_DIR/$TEST_ID.failure" | head -n 5)
         echo -e "${RED}FAILED${RESET} ${BOLD}${WHITE}$TEST_ID${RESET}"
         echo -e "\tExit code: $EXIT_CODE"
         echo "$OUTPUT" | sed 's/^/\t/'
@@ -149,7 +150,9 @@ if [[ "$FAILURE_COUNT" -gt 0 ]] && [[ -n "${SAVE_ON_FAILURE:-}" ]]; then
 fi
 
 echo -e "${BOLD}${WHITE}Ran $TEST_COUNT tests. ${GREEN}$SUCCESS_COUNT${WHITE} succeeded, ${RED}$FAILURE_COUNT${WHITE} failed, ${YELLOW}$SKIPPED_COUNT${WHITE} skipped.${RESET}"
-echo "Elapsed time: $ELAPSED milliseconds."
+if [[ -z "$EXTERNAL_TIMING" ]]; then
+    echo "Took ${ELAPSED}ms"
+fi
 
 if [ $FAILURE_COUNT -gt 0 ]; then
     exit 1

@@ -76,7 +76,8 @@ func withFolder(keys *Keys, folder string, command []string, mode string) error 
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {
-		return NewCommandError("Failed to run command", "", cmd)
+		exactError := NewCommandError("Failed to run command", "", cmd)
+		return NewSilentError(exactError, cmd.ProcessState.ExitCode())
 	}
 
 	return nil

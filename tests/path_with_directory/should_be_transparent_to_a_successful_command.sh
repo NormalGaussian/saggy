@@ -9,6 +9,8 @@ PLAINTEXT_DIR="./plaintext"
 mkdir -p "$ENCRYPTED_DIR"
 mkdir -p "$DECRYPTED_DIR"
 mkdir -p "$PLAINTEXT_DIR"
+STDOUT_FILE="./.stdout"
+STDERR_FILE="./.stderr"
 
 echo "test content 1" > "$PLAINTEXT_DIR/file1.txt"
 echo "test content 2" > "$PLAINTEXT_DIR/file2.txt"

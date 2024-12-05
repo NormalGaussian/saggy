@@ -5,6 +5,8 @@
 ENCRYPTED_DIR="./testdir.sops"
 DECRYPTED_DIR="./decrypted"
 PLAINTEXT_DIR="./plaintext"
+STDOUT_FILE="./.stdout"
+STDERR_FILE="./.stderr"
 
 mkdir -p "$ENCRYPTED_DIR"
 mkdir -p "$DECRYPTED_DIR"

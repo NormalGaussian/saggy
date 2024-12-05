@@ -1,4 +1,16 @@
 #!/bin/bash
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-$SCRIPT_DIR/run_test.sh "$@"
+
+start_time=$(($(date +%s%3N)))
+start_test_time=$(($(date +%s%3N)))
+
+EXTERNAL_TIMING=1 $SCRIPT_DIR/run_test.sh "$@"
+
+end_test_time=$(($(date +%s%3N)))
+end_time=$(($(date +%s%3N)))
+
+elapsed_test_time=$((end_test_time - start_test_time))
+elapsed_time=$((end_time - start_time))
+
+echo "Took ${elapsed_time}ms"
