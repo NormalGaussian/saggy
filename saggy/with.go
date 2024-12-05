@@ -11,8 +11,8 @@ func With(keys *Keys, target string, command []string, mode string) error {
 		return NewSaggyError("Cannot write - no public keys provided", nil)
 	}
 
-	if is_dir, s_err := isDir(target); s_err != nil {
-		return s_err
+	if is_dir, err := isDir(target); err != nil {
+		return err
 	} else if is_dir {
 		return withFolder(keys, target, command, mode)
 	} else {
@@ -27,8 +27,11 @@ func withFile(keys *Keys, file string, command []string, mode string) error {
 	}
 	defer os.Remove(tmpFile)
 
-	if s_err := DecryptFile(keys.DecryptKey, file, tmpFile); s_err != nil {
-		return NewSaggyError("Failed to decrypt file", s_err)
+	if err := DecryptFile(keys.DecryptKey, file, tmpFile); err != nil {
+		return err
+	}
+	if mode == "write" {
+		defer EncryptFile(keys.EncryptKeys, tmpFile, file)
 	}
 
 	// Substitute {} with the temporary file
@@ -41,42 +44,40 @@ func withFile(keys *Keys, file string, command []string, mode string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {
-		exactError := NewExecutionError("Failed to run command", "", cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
+		exactError := NewCommandError("Failed to run command", "", cmd)
 		return NewSilentError(exactError, cmd.ProcessState.ExitCode())
 	}
 
-	if mode == "write" {
-		return EncryptFile(keys.EncryptKeys, tmpFile, file)
-	}
 	return nil
 }
 
 func withFolder(keys *Keys, folder string, command []string, mode string) error {
-	tmpFolder, s_err := createTempDir()
-	if s_err != nil {
-		return NewSaggyError("Failed to create temporary directory", s_err)
+	tmpFolder, err := createTempDir()
+	if err != nil {
+		return err
 	}
 	defer os.RemoveAll(tmpFolder)
 
-	if s_err := DecryptFolder(keys.DecryptKey, folder, tmpFolder); s_err != nil {
-		return NewSaggyError("Failed to decrypt folder", s_err)
+	if err := DecryptFolder(keys.DecryptKey, folder, tmpFolder); err != nil {
+		return err
+	}
+	if mode == "write" {
+		defer EncryptFolder(keys.EncryptKeys, tmpFolder, folder)
 	}
 
-	// Substitute {} with the temporary folder and quotes all args
+	// Substitute {} with the temporary folder
 	for i := range command {
 		command[i] = strings.ReplaceAll(command[i], "{}", tmpFolder)
 	}
 	subcommand := strings.Join(command, " ")
 
+	// Run the command
 	cmd := exec.Command("sh", "-c", subcommand)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {
-		return NewExecutionError("Failed to run command", "", cmd.ProcessState.ExitCode(), cmd.Path, cmd.Args, cmd.Dir)
+		return NewCommandError("Failed to run command", "", cmd)
 	}
 
-	if mode == "write" {
-		return EncryptFolder(keys.EncryptKeys, tmpFolder, folder)
-	}
 	return nil
 }

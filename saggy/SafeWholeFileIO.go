@@ -20,8 +20,8 @@ type SafeWholeFileIO interface {
 
 type SafeWholeFile struct {
 	filename string
-	perms fs.FileMode
-	flags int
+	perms    fs.FileMode
+	flags    int
 }
 
 var defaultPermissions = fs.FileMode(0644)
@@ -38,17 +38,17 @@ func NewSafeWholeFile(filename string, flags int, perms fs.FileMode) *SafeWholeF
 
 	return &SafeWholeFile{
 		filename: filename,
-		perms: perms,
-		flags: flags,
+		perms:    perms,
+		flags:    flags,
 	}
 }
 
 func (s *SafeWholeFile) Write(data []byte) error {
 	// Check if the file is openable for writing
-	if s.flags & os.O_WRONLY == 0 && s.flags & os.O_RDWR == 0 {
+	if s.flags&os.O_WRONLY == 0 && s.flags&os.O_RDWR == 0 {
 		return NewSaggyError("File is not openable for writing", nil)
 	}
-	
+
 	// Check if there are file issues beyong not existing
 	stat, err := os.Stat(s.filename)
 	if err != nil && !os.IsNotExist(err) {
@@ -58,7 +58,7 @@ func (s *SafeWholeFile) Write(data []byte) error {
 	}
 
 	// If the file exists, check we aren't trying to exclusively create it
-	if err == nil && s.flags & os.O_CREATE != 0 && s.flags & os.O_EXCL != 0 {
+	if err == nil && s.flags&os.O_CREATE != 0 && s.flags&os.O_EXCL != 0 {
 		return NewSaggyError("File already exists", nil)
 	}
 
@@ -93,7 +93,7 @@ func (s *SafeWholeFile) Write(data []byte) error {
 
 func (s *SafeWholeFile) Read() ([]byte, error) {
 	// Check if the file is openable for reading
-	if s.flags & os.O_RDONLY == 0 && s.flags & os.O_RDWR == 0 {
+	if s.flags&os.O_RDONLY == 0 && s.flags&os.O_RDWR == 0 {
 		return nil, NewSaggyError("File is not openable for reading", nil)
 	}
 
@@ -121,7 +121,7 @@ func (s *SafeWholeFile) Read() ([]byte, error) {
 
 func (s *SafeWholeFile) Remove() error {
 	// Check if the file is openable for writing
-	if s.flags & os.O_WRONLY == 0 {
+	if s.flags&os.O_WRONLY == 0 {
 		return NewSaggyError("File is not openable for writing", nil)
 	}
 

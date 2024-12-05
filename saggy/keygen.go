@@ -75,9 +75,15 @@ func Keygen(keys *GenerateKeys) (err error) {
 }
 
 type KeyGenParameters struct {
+	// How the key should be identified in the public keys file
+	// Optional; required if the public keys filename or writer is provided, and the key format is not age
 	keyName string
-	
+
+	//
 	privateKeyWriter io.Writer
+
+	// Where to write the private key
+	// Optional; if the writer is provided the file will not be created
 	privateKeyFilepath string
 
 	// Either age or json
@@ -99,12 +105,12 @@ type KeyGenParameters struct {
 }
 
 type KeyGenParametersIO struct {
-	keyName string
+	keyName          string
 	privateKeyFormat string
-	writePrivateKey func (data []byte) error
+	writePrivateKey  func(data []byte) error
 	publicKeysFormat string
-	readPublicKeys func () ([]byte, error)
-	writePublicKeys func ([]byte) error
+	readPublicKeys   func() ([]byte, error)
+	writePublicKeys  func([]byte) error
 }
 
 func KeyGen_parameterised(parameters *KeyGenParameters) error {
@@ -160,7 +166,7 @@ func KeyGen_parameterised(parameters *KeyGenParameters) error {
 
 	// At this point everything needed is set
 
-	var writePrivateKey func (data []byte) error
+	var writePrivateKey func(data []byte) error
 
 	if parameters.privateKeyWriter != nil {
 		writePrivateKey = func(data []byte) error {
@@ -172,8 +178,8 @@ func KeyGen_parameterised(parameters *KeyGenParameters) error {
 		writePrivateKey = f.Write
 	}
 
-	var writePublicKeys func (data []byte) error
-	var readPublicKeys func () ([]byte, error)
+	var writePublicKeys func(data []byte) error
+	var readPublicKeys func() ([]byte, error)
 
 	if parameters.publicKeysWriter != nil {
 		writePublicKeys = func(data []byte) error {
@@ -193,14 +199,14 @@ func KeyGen_parameterised(parameters *KeyGenParameters) error {
 			readPublicKeys = f.Read
 		}
 	}
-	
+
 	return KeygenToIO(&KeyGenParametersIO{
-		keyName: keyName,
+		keyName:          keyName,
 		privateKeyFormat: privateKeyFormat,
-		writePrivateKey: writePrivateKey,
+		writePrivateKey:  writePrivateKey,
 		publicKeysFormat: publicKeysFormat,
-		readPublicKeys: readPublicKeys,
-		writePublicKeys: writePublicKeys,
+		readPublicKeys:   readPublicKeys,
+		writePublicKeys:  writePublicKeys,
 	})
 }
 
@@ -216,12 +222,12 @@ func KeygenToIO(opts *KeyGenParametersIO) error {
 	if opts.writePrivateKey != nil {
 		var data string
 		switch opts.privateKeyFormat {
-			case "age":
-				data = fmt.Sprintf("# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), keys.publicKey, keys.privateKey)
-			case "json":
-				data = fmt.Sprintf("{\n  \"key\": \"%s\",\n  \"publicKey\": \"%s\"\n}\n", keys.privateKey, keys.publicKey)
-			default:
-				return NewSaggyError("Invalid format", nil)
+		case "age":
+			data = fmt.Sprintf("# created: %s\n# public key: %s\n%s\n", time.Now().Format(time.RFC3339), keys.publicKey, keys.privateKey)
+		case "json":
+			data = fmt.Sprintf("{\n  \"key\": \"%s\",\n  \"publicKey\": \"%s\"\n}\n", keys.privateKey, keys.publicKey)
+		default:
+			return NewSaggyError("Invalid format", nil)
 		}
 		if err := opts.writePrivateKey([]byte(data)); err != nil {
 			return err
@@ -231,43 +237,43 @@ func KeygenToIO(opts *KeyGenParametersIO) error {
 	// Write the public keys to the io.Writer if provided, reading the existing keys from the io.Reader if provided
 	if opts.writePublicKeys != nil {
 		switch opts.publicKeysFormat {
-			case "age":
+		case "age":
 
-				// No reader is required for age format
+			// No reader is required for age format
 
-				data := fmt.Sprintf("%s\n", keys.publicKey)
-				if err := opts.writePublicKeys([]byte(data)); err != nil {
+			data := fmt.Sprintf("%s\n", keys.publicKey)
+			if err := opts.writePublicKeys([]byte(data)); err != nil {
+				return err
+			}
+
+		case "json":
+
+			publicKeys := make(map[string]string)
+
+			// Read the existing keys
+			if opts.readPublicKeys != nil {
+				data, err := opts.readPublicKeys()
+				if err != nil {
 					return err
 				}
 
-			case "json":				
+				if len(data) > 0 {
 
-				publicKeys := make(map[string]string)
-
-				// Read the existing keys
-				if opts.readPublicKeys != nil {
-					data, err := opts.readPublicKeys()
-					if err != nil {
-						return err
-					}
-
-					if len(data) > 0 {
-
-						if err := json.Unmarshal(data, &publicKeys); err != nil {
-							return NewSaggyError("Failed to parse public keys", err)
-						}
+					if err := json.Unmarshal(data, &publicKeys); err != nil {
+						return NewSaggyError("Failed to parse public keys", err)
 					}
 				}
+			}
 
-				// Add the new key
-				publicKeys[opts.keyName] = keys.publicKey
+			// Add the new key
+			publicKeys[opts.keyName] = keys.publicKey
 
-				// Write the keys
-				if data, err := json.Marshal(publicKeys); err != nil {
-					return NewSaggyError("Failed to marshal public keys", err)
-				} else if err := opts.writePublicKeys(data); err != nil {
-					return err
-				}
+			// Write the keys
+			if data, err := json.Marshal(publicKeys); err != nil {
+				return NewSaggyError("Failed to marshal public keys", err)
+			} else if err := opts.writePublicKeys(data); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -285,6 +291,6 @@ func KeygenToFile(privateKeyFilepath, publicKeysFilepath, keyName string) error 
 	return KeyGen_parameterised(&KeyGenParameters{
 		privateKeyFilepath: privateKeyFilepath,
 		publicKeysFilepath: publicKeysFilepath,
-		keyName: keyName,
+		keyName:            keyName,
 	})
 }

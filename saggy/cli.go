@@ -75,7 +75,7 @@ func CLI(argv []string) error {
 		if err != nil {
 			return err
 		}
-		
+
 		publicKeysFileAbs, err := filepath.Abs(publicKeysFile)
 		if err != nil {
 			return err
@@ -84,9 +84,9 @@ func CLI(argv []string) error {
 		return KeyGen_parameterised(&KeyGenParameters{
 			privateKeyFilepath: privateKeyFileAbs,
 			publicKeysFilepath: publicKeysFileAbs,
-			keyName: keyName,
-			privateKeyFormat: "age",
-			publicKeysFormat: "json",
+			keyName:            keyName,
+			privateKeyFormat:   "age",
+			publicKeysFormat:   "json",
 		})
 
 	case "with":

@@ -1,14 +1,35 @@
 package saggy
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
-	"errors"
 )
+
+// TODO: credit properly; taken and modified from go source
+func safeCreateTempFile(nextName func() string, perms fs.FileMode) (*os.File, error) {
+	try := 0
+	for {
+		f, err := os.OpenFile(nextName(), os.O_RDWR|os.O_CREATE|os.O_EXCL, perms)
+		if errors.Is(err, fs.ErrExist) {
+			if try++; try < 10000 {
+				continue
+			}
+			return nil, err
+		}
+		return f, err
+	}
+}
+
+func safeCreateAbsoluteTempFile(perms fs.FileMode) (*os.File, error) {
+	return safeCreateTempFile(func() string {
+		return filepath.Join(os.TempDir(), randomDecimalString())
+	}, perms)
+}
 
 // TODO: credit properly; taken and modified from go source
 func safeCreateRelativeTempFile(forFilename string, perms fs.FileMode) (*os.File, error) {
@@ -23,21 +44,14 @@ func safeCreateRelativeTempFile(forFilename string, perms fs.FileMode) (*os.File
 	}
 	suffix := ".tmp"
 
-	try := 0
-	for {
-		tmpfilename := filepath.Join(dir, prefix + randomDecimalString() + suffix)
-		f, err := os.OpenFile(tmpfilename, os.O_RDWR|os.O_CREATE|os.O_EXCL, perms)
-		if errors.Is(err, fs.ErrExist) {
-			if try++; try < 10000 {
-				continue
-			}
-			return nil, err
-		}
-		return f, err
+	nextName := func() string {
+		return filepath.Join(dir, prefix+randomDecimalString()+suffix)
 	}
+
+	return safeCreateTempFile(nextName, perms)
 }
 
-// TODO: credit properly; taken from go source
+// TODO: credit properly; taken and modified from go source
 func randomDecimalString() string {
 	val := uint(rand.Uint32())
 	if val == 0 { // avoid string allocation
@@ -123,7 +137,11 @@ func createTempDir() (string, error) {
 func isDir(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return false, NewSaggyErrorWithMeta("Failed to stat path", err, info)
+		return false, NewSaggyErrorWithMeta("Failed to stat path", err, struct {
+			path string
+		}{
+			path: path,
+		})
 	}
 	return info.IsDir(), nil
 }

@@ -88,18 +88,22 @@ func (e *SaggyError) Unwrap() error {
 	return e.Err
 }
 
-func NewSaggyError_skipFrames(message string, err error, meta interface{}, skip int) error {
-	_, file, line, _ := runtime.Caller(skip + 1)
+func NewSaggyErrorWithMeta(message string, err error, meta interface{}) error {
+	_, file, line, _ := runtime.Caller(0)
 	error := &SaggyError{Message: message, Err: err, Meta: meta, File: file, Line: line}
 	return error
 }
 
-func NewSaggyErrorWithMeta(message string, err error, meta interface{}) error {
-	return NewSaggyError_skipFrames(message, err, meta, 0)
+func NewSaggyError(message string, err error) error {
+	_, file, line, _ := runtime.Caller(1)
+	error := &SaggyError{Message: message, Err: err, Meta: nil, File: file, Line: line}
+	return error
 }
 
-func NewSaggyError(message string, err error) error {
-	return NewSaggyError_skipFrames(message, err, nil, 1)
+func NewSaggyError_skipFrames(message string, err error, meta interface{}, skip int) error {
+	_, file, line, _ := runtime.Caller(skip + 1)
+	error := &SaggyError{Message: message, Err: err, Meta: meta, File: file, Line: line}
+	return error
 }
 
 func NewExecutionError(message string, output string, status int, command string, args []string, dir string) error {
@@ -110,7 +114,9 @@ func NewExecutionError(message string, output string, status int, command string
 		Args    []string
 		Dir     string
 	}{Status: status, Output: output, Command: command, Args: args, Dir: dir}
-	return NewSaggyError_skipFrames(message, nil, meta, 2)
+	_, file, line, _ := runtime.Caller(2)
+	error := &SaggyError{Message: message, Err: nil, Meta: meta, File: file, Line: line}
+	return error
 }
 
 func NewCommandError(message string, output string, cmd *exec.Cmd) error {
@@ -121,7 +127,9 @@ func NewCommandError(message string, output string, cmd *exec.Cmd) error {
 		Args    []string
 		Dir     string
 	}{Status: cmd.ProcessState.ExitCode(), Output: output, Command: cmd.Path, Args: cmd.Args, Dir: cmd.Dir}
-	return NewSaggyError_skipFrames(message, nil, meta, 2)
+	_, file, line, _ := runtime.Caller(2)
+	error := &SaggyError{Message: message, Err: nil, Meta: meta, File: file, Line: line}
+	return error
 }
 
 type CLIError struct {
