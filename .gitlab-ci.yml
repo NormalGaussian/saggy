@@ -1,0 +1,48 @@
+default:
+  image: golang:1.22
+
+ci-format:
+  needs: []
+  script:
+    - make ci-format
+
+ci-test:
+  needs: []
+  script:
+    - make ci-test
+
+ci-build:
+  needs: []
+  script:
+    - make ci-build VERSION=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
+  artifacts:
+    paths:
+      - bin/
+
+ci-release:
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - ci-build
+    - ci-format
+    - ci-test
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - echo "Creating release $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    description: "Release $CI_COMMIT_TAG"
+    assets:
+      links:
+        - name: saggycli-linux-amd64
+          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/bin/saggycli-linux-amd64"
+        - name: saggycli-linux-arm64
+          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/bin/saggycli-linux-arm64"
+        - name: saggycli-darwin-amd64
+          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/bin/saggycli-darwin-amd64"
+        - name: saggycli-darwin-arm64
+          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/bin/saggycli-darwin-arm64"
+        - name: saggycli-windows-amd64
+          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/bin/saggycli-windows-amd64"
+        - name: saggycli-windows-arm64
+          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/bin/saggycli-windows-arm64"
