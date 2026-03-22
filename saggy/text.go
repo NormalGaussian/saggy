@@ -10,6 +10,8 @@ var LICENSE_TEXT string
 //go:embed text/license-full.txt
 var LICENSE_TEXT_FULL string
 
+var Version = "dev"
+
 //go:embed text/usage.txt
 var USAGE_TEXT string
 

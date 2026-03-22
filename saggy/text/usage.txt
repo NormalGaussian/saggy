@@ -26,6 +26,9 @@ Usage:
   saggy decrypt <target> <destination>
 	 - Decrypt the target, storing the result in the destination file
 
+  saggy version
+	 - Print the version of saggy
+
 Environment Variables:
   SAGGY_SECRETS_DIR       - the directory containing the secrets
 							(default: ./secrets)

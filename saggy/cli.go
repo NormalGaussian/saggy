@@ -109,6 +109,10 @@ func CLI(argv []string) error {
 
 		return With(keys, target, command, mode)
 
+	case "version":
+		fmt.Println(Version)
+		return nil
+
 	case "license":
 		if len(args) >= 1 && args[0] == "--full" {
 			fmt.Println(LICENSE_TEXT_FULL)
