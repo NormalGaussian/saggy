@@ -10,6 +10,10 @@ ci-test:
   needs: []
   script:
     - make ci-test
+  artifacts:
+    paths:
+      - tests/coverage.out
+  coverage: '/total.*\s(\d+\.\d+)%/'
 
 ci-build:
   needs: []

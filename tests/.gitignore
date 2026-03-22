@@ -2,3 +2,5 @@ results
 tmp
 secrets
 saggy_go
+coverage
+coverage.out

@@ -6,12 +6,16 @@ start_time=$(($(date +%s%3N)))
 
 start_build_time=$(($(date +%s%3N)))
 
-go build -C "$SCRIPT_DIR/.." -o "$SCRIPT_DIR/saggy_go"
+COVER_DIR="$SCRIPT_DIR/coverage"
+rm -rf "$COVER_DIR"
+mkdir -p "$COVER_DIR"
+
+go build -C "$SCRIPT_DIR/.." -cover -o "$SCRIPT_DIR/saggy_go"
 
 end_build_time=$(($(date +%s%3N)))
 start_test_time=$(($(date +%s%3N)))
 
-EXTERNAL_TIMING=1 TESTENV=GOCACHE,XDG_CACHE_HOME,HOME SAGGY="$SCRIPT_DIR/saggy_go" $SCRIPT_DIR/run_test.sh "$@"
+EXTERNAL_TIMING=1 TESTENV=GOCACHE,XDG_CACHE_HOME,HOME,GOCOVERDIR GOCOVERDIR="$COVER_DIR" SAGGY="$SCRIPT_DIR/saggy_go" $SCRIPT_DIR/run_test.sh "$@"
 
 end_test_time=$(($(date +%s%3N)))
 end_time=$(($(date +%s%3N)))
@@ -21,3 +25,8 @@ elapsed_test_time=$((end_test_time - start_test_time))
 elapsed_time=$((end_time - start_time))
 
 echo "Took ${elapsed_time}ms / build ${elapsed_build_time}ms / test ${elapsed_test_time}ms"
+
+if [ -n "$(ls -A "$COVER_DIR" 2>/dev/null)" ]; then
+    go tool covdata percent -i="$COVER_DIR"
+    go tool covdata textfmt -i="$COVER_DIR" -o="$SCRIPT_DIR/coverage.out"
+fi
