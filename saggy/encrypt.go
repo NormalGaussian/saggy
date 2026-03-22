@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func Encrypt(keys *EncryptKeys, from, to string) error {
@@ -23,10 +24,11 @@ func EncryptFile(keys *EncryptKeys, from, to string) error {
 		to = getSopsifiedFilename(from)
 	}
 
-	args := []string{"--encrypt"}
+	ageKeys := []string{}
 	for _, key := range *keys.publicKeys {
-		args = append(args, "--age", key)
+		ageKeys = append(ageKeys, key)
 	}
+	args := []string{"--encrypt", "--age", strings.Join(ageKeys, ",")}
 	args = append(args, from, to)
 	cmd := exec.Command("sops", args...)
 	output, err := cmd.Output()
@@ -65,10 +67,11 @@ func EncryptFolder(keys *EncryptKeys, from, to string) error {
 				return NewSaggyError("Failed to create directory", err)
 			}
 
-			args := []string{"--encrypt"}
+			ageKeys := []string{}
 			for _, key := range *keys.publicKeys {
-				args = append(args, "--age", key)
+				ageKeys = append(ageKeys, key)
 			}
+			args := []string{"--encrypt", "--age", strings.Join(ageKeys, ",")}
 			args = append(args, path)
 			cmd := exec.Command("sops", args...)
 			output, err := cmd.Output()
